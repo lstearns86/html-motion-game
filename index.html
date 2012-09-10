@@ -1,0 +1,395 @@
+<html>
+<meta http-equiv="X-UA-Compatible" content="IE=9"/>
+
+
+<head>
+<title>HTML5 Portable Device Motion Experiment</title>
+
+<style type="text/css">
+#mainCanvas
+{
+width: 100%;
+height: 100%;
+margin: 0px;
+padding: 0px;
+position: absolute;
+z-index: 0;
+}
+#secondCanvas
+{
+width: 100%;
+height: 100%;
+margin: 0px;
+padding: 0px;
+position: absolute;
+z-index: -1;
+}
+</style>
+
+<script type="text/javascript">
+
+var minRoll = -30;
+var maxRoll = -150;
+
+var canvas, canvasBg;
+var roll, pitch, yaw;
+var targetYaw, targetRoll;
+var centerPercent;
+
+var hintVisibility, hintDirection, prevYaw, prevRoll;
+
+var bgImg;
+var loading;
+
+function initialize()
+{
+	roll = 0; pitch = 0; yaw = 0;
+	//targetYaw = Math.random() * 360 - 180;
+	targetYaw = 0;
+	//targetRoll = Math.random() * (maxRoll - minRoll) + minRoll;
+	targetRoll = -90;
+	centerPercent = 0;
+	
+	hintVisibility = 0;
+
+	canvas = document.getElementById('mainCanvas');
+	canvasBg = document.getElementById('secondCanvas');
+	if(window.DeviceOrientationEvent)
+		window.addEventListener('deviceorientation', orientationChanged, false);
+	
+	loading = true;
+	bgImg = new Image();
+	bgImg.onload = function() { loading = false; draw(); drawBg(); }
+	bgImg.src = "panorama1.jpg"; //Photo by DAVID ILIFF. License: CC-BY-SA 3.0. Downloaded from wikipedia.org
+	
+	// test code, remove later
+	var lon1 = 0;
+	var lon2 = 57;
+	var dLon = lon2 - lon1;
+	while(dLon < -180) dLon += 360;
+	while(dLon > 180) dLon -= 360;
+	var lat1 = -(-90 + 90);
+	var lat2 = -(-128 + 90);
+	lon1 = lon1 * Math.PI / 180;
+	lon2 = lon2 * Math.PI / 180;
+	lat1 = lat1 * Math.PI / 180;
+	lat2 = lat2 * Math.PI / 180;
+	var bearing = Math.atan2(Math.sin(dLon) * Math.cos(lat2), 
+							 Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon));
+	//var maxLat = Math.acos(Math.abs(Math.sin(bearing)*Math.cos(lat1)));
+	//maxLat = maxLat * 180 / Math.PI;
+	hintDirection = bearing * 180 / Math.PI;
+	hintDirection = 360 - ((hintDirection + 270) % 360);
+	if(hintDirection > 180) hintDirection -= 360;
+	
+	resize();
+	update();
+}
+
+function resize()
+{
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	canvas.style.left = '0px';
+	canvas.style.top = '0px';
+	
+	canvasBg.width = window.innerWidth;
+	canvasBg.height = window.innerHeight;
+	canvasBg.style.left = '0px';
+	canvasBg.style.top = '0px';
+
+	draw();
+	drawBg();
+}
+
+function draw()
+{
+	var cxt = canvas.getContext('2d');
+	
+	// Store the current transformation matrix
+	//cxt.save();
+
+	// Use the identity matrix while clearing the canvas
+	//cxt.setTransform(1, 0, 0, 1, 0, 0);
+	//cxt.clearRect(0, 0, canvas.width, canvas.height);
+
+	// Restore the transform
+	//cxt.restore();
+	
+	canvas.width = canvas.width; // may be faster for some browsers
+	
+	if(loading)
+	{
+		cxt.font = "24pt Arial";
+		cxt.fillStyle = "#000000";
+		cxt.fillText('Loading...', window.innerWidth / 2 - cxt.measureText("Loading...").width / 2, window.innerHeight / 2);
+	}
+	else
+	{
+		var angleX = yaw - targetYaw;
+		while(angleX < -180) angleX += 360;
+		while(angleX > 180) angleX -= 360;
+		var angleY = roll - targetRoll;
+		if(Math.abs(angleX) < 40 && Math.abs(angleY) < 40)
+		{
+			var x = canvas.width / 2 + Math.sin(angleX * Math.PI / 180) * canvas.width;
+			var y = canvas.height / 2 - Math.sin(angleY * Math.PI / 180) * canvas.height;
+			
+			if(centerPercent > 0)
+			{
+				cxt.beginPath();
+				cxt.fillStyle = "#00ff00";
+				cxt.moveTo(x, y);
+				cxt.arc(x, y, 110, 0, 2 * Math.PI * centerPercent / 100, false);
+				cxt.lineTo(x, y);
+				cxt.fill();
+			}
+			
+			cxt.beginPath();
+			cxt.fillStyle = "#ff0000";
+			cxt.arc(x, y, 100, 2 * Math.PI, false);
+			cxt.fill();
+			
+			cxt.beginPath();
+			cxt.fillStyle = "#ffffff";
+			cxt.arc(x, y, 80, 2 * Math.PI, false);
+			cxt.fill();
+			
+			cxt.beginPath();
+			cxt.fillStyle = "#ff0000";
+			cxt.arc(x, y, 60, 2 * Math.PI, false);
+			cxt.fill();
+			
+			cxt.beginPath();
+			cxt.fillStyle = "#ffffff";
+			cxt.arc(x, y, 40, 2 * Math.PI, false);
+			cxt.fill();
+			
+			cxt.beginPath();
+			cxt.fillStyle = "#ff0000";
+			cxt.arc(x, y, 20, 2 * Math.PI, false);
+			cxt.fill();
+		}
+		
+		if(hintVisibility > 0)
+		{
+			angleX = yaw - prevYaw;
+			while(angleX < -180) angleX += 360;
+			while(angleX > 180) angleX -= 360;
+			angleY = roll - prevRoll;
+			if(Math.abs(angleX) < 40 && Math.abs(angleY) < 40)
+			{
+				var x = canvas.width / 2 + Math.sin(angleX * Math.PI / 180) * canvas.width;
+				var y = canvas.height / 2 - Math.sin(angleY * Math.PI / 180) * canvas.height;
+				
+				cxt.save();
+				cxt.globalAlpha = hintVisibility
+				cxt.translate(x, y);
+				cxt.rotate(-hintDirection * Math.PI / 180);
+				cxt.fillStyle = "#ffffff";
+				cxt.beginPath();
+				cxt.moveTo(-50, -5);
+				cxt.lineTo(-50, 5);
+				cxt.lineTo(25, 5);
+				cxt.lineTo(25, 25);
+				cxt.lineTo(50, 0);
+				cxt.lineTo(25, -25);
+				cxt.lineTo(25, -5);
+				cxt.lineTo(-25, -5);
+				cxt.fill();
+				cxt.globalAlpha = 1;
+				cxt.restore();
+			}
+		}
+		
+		/*cxt.font = "24pt Arial";
+		cxt.fillStyle = "#000000";
+		cxt.fillText('Roll: ' + Math.round(roll).toString(), 10, 30);
+		cxt.fillText('Pitch: ' + Math.round(pitch).toString(), 10, 60);
+		cxt.fillText('Yaw: ' + Math.round(yaw).toString(), 10, 90);
+		cxt.fillText('Target Yaw: ' + Math.round(targetYaw).toString(), 10, 120);
+		cxt.fillText('Target Roll: ' + Math.round(targetRoll).toString(), 10, 150);
+		cxt.fillText('Prev Yaw: ' + Math.round(prevYaw).toString(), 10, 180);
+		cxt.fillText('Prev Roll: ' + Math.round(prevRoll).toString(), 10, 210);
+		cxt.fillText('Hint Direction: ' + Math.round(hintDirection).toString(), 10, 240);
+		cxt.fillText('Hint Visibility: ' + hintVisibility, 10, 270);*/
+		
+		//cxt.strokeRect(0, 0, canvas.width, canvas.height);
+	}
+}
+
+function drawBg()
+{
+	var cxt = canvasBg.getContext('2d');
+	
+	// Store the current transformation matrix
+	//cxt.save();
+
+	// Use the identity matrix while clearing the canvas
+	//cxt.setTransform(1, 0, 0, 1, 0, 0);
+	//cxt.clearRect(0, 0, canvas.width, canvas.height);
+
+	// Restore the transform
+	//cxt.restore();
+	
+	//canvasBg.width = canvasBg.width; // may be faster for some browsers
+	
+	// draw background
+	var bgWidth = 2 * bgImg.width;
+	var bgHeight = 2 * bgImg.height;
+	var bgX = bgWidth * yaw / 360;
+	var bgY = -bgHeight * (roll + 180 - 40) / 180;
+	if(bgY > 0) bgY = 0;
+	if(bgY + bgHeight < canvasBg.height) bgY = canvasBg.height - bgHeight;
+	cxt.drawImage(bgImg, bgX, bgY, bgWidth, bgHeight);
+	cxt.drawImage(bgImg, bgX - bgWidth, bgY, bgWidth, bgHeight);
+}
+
+function orientationChanged(e)
+{
+	if(e.alpha != null)
+	{
+		roll = e.gamma;
+		pitch = e.beta;
+		yaw = e.alpha;
+		
+		if(yaw > 180) yaw -= 360;
+	}
+}
+
+function update()
+{
+	if(!loading)
+	{
+		var angleX = yaw - targetYaw;
+		while(angleX < -180) angleX += 360;
+		while(angleX > 180) angleX -= 360;
+		var angleY = roll - targetRoll;
+		if(Math.abs(angleX) < 10 && Math.abs(angleY) < 10)
+			centerPercent += 2;
+		else
+			centerPercent = 0;
+			
+		hintVisibility -= 0.02;
+		
+		if(centerPercent >= 100)
+		{
+			hintVisibility = 1;
+			prevYaw = targetYaw;
+			prevRoll = targetRoll;
+		
+			targetYaw = Math.random() * 360 - 180;
+			//targetYaw = Math.random() * 60 - 30;
+			targetRoll = Math.random() * (maxRoll - minRoll) + minRoll;
+			centerPercent = 0;
+			
+			//var hintX = (((targetYaw - prevYaw + 360) % 360) - 180) / 180;
+			//var hintY = (targetRoll - prevRoll) / 180;
+			//hintDirection = Math.atan2(hintY, hintX) * 180 / Math.PI;
+			
+			/*var angleX = prevYaw - targetYaw;
+			while(angleX < -180) angleX += 360;
+			while(angleX > 180) angleX -= 360;
+			var angleY = prevRoll - targetRoll;
+			var x = Math.sin(angleX * Math.PI / 180);
+			var y = Math.sin(angleY * Math.PI / 180);
+			hintDirection = Math.atan2(y, x) * 180 / Math.PI;*/
+			
+			// find the great circle bearing between targets
+			var lon1 = prevYaw;
+			var lon2 = targetYaw;
+			var dLon = lon2 - lon1;
+			while(dLon < -180) dLon += 360;
+			while(dLon > 180) dLon -= 360;
+			var lat1 = -(prevRoll + 90);
+			var lat2 = -(targetRoll + 90);
+			lon1 = lon1 * Math.PI / 180;
+			lon2 = lon2 * Math.PI / 180;
+			lat1 = lat1 * Math.PI / 180;
+			lat2 = lat2 * Math.PI / 180;
+			var bearing = Math.atan2(Math.sin(dLon) * Math.cos(lat2), 
+									 Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon));
+			//var maxLat = Math.acos(Math.abs(Math.sin(bearing)*Math.cos(lat1)));
+			//maxLat = maxLat * 180 / Math.PI;
+			hintDirection = bearing * 180 / Math.PI;
+			hintDirection = 360 - ((hintDirection + 270) % 360);
+			if(hintDirection > 180) hintDirection -= 360;
+			/*if(maxLat > 60)
+			{
+				if(hintDirection > 60 && hintDirection <= 90) hintDirection = 60;
+				else if(hintDirection > 90 && hintDirection < 120) hintDirectin = 120;
+				else if(hintDirection > 240 && hintDirection <= 270) hintDirection = 240;
+				else if(hintDirection > 270 && hintDirection < 300) hintDirection = 300;
+			}*/
+		}
+	
+		draw();
+		drawBg();
+	}
+	
+	requestAnimFrame(update);
+}
+
+// get the mouse or touch position from the event variable for various browsers
+function getPosition(e)
+{
+	return getCanvasPosition(e, canvas);
+}
+
+function getCanvasPosition(e, canvas)
+{
+	var x, y;
+	
+	if (e.layerX || e.layerX == 0) { // Firefox, Chrome, IE9, Desktop Safari
+		x = e.layerX;
+		y = e.layerY;
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+	} else if (e.offsetX || e.offsetX == 0) { // Opera
+		x = e.offsetX;
+		y = e.offsetY;
+	} else { // iOS Safari
+		x = e.pageX;
+		y = e.pageY;
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+	}
+	
+	return {x: x, y: y};
+}
+
+// shim layer with setTimeout fallback
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       || 
+		  window.webkitRequestAnimationFrame || 
+		  window.mozRequestAnimationFrame    || 
+		  window.oRequestAnimationFrame      || 
+		  window.msRequestAnimationFrame     || 
+		  function( callback ){
+			window.setTimeout(callback, 1000 / 60);
+		  };
+})();
+
+</script>
+
+</head>
+
+
+<body onload="initialize()" onresize="resize();">
+<div id="content">
+
+<canvas id="mainCanvas" width="600" height="600" >
+This application uses the HTML 5 Canvas element. Please update your browser to the most recent version or download one of these supported alternatives:
+<br/><br/>
+<a href="http://www.google.com/chrome">Google Chrome 4.0+</a><br/>
+<a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox 2.0+</a><br/>
+<a href="http://windows.microsoft.com/en-US/internet-explorer/products/ie/home">Microsoft Internet Explorer 9.0+</a><br/>
+<a href="http://www.apple.com/safari/">Apple Safari 3.1+</a><br/>
+<a href="http://www.opera.com/">Opera 9.0+</a><br/>
+<br/>
+</canvas>
+<canvas id="secondCanvas"></canvas>
+
+</div>
+</body>
+</html>
