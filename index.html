@@ -28,26 +28,24 @@ z-index: -1;
 
 <script type="text/javascript">
 
-var minRoll = -30;
-var maxRoll = -150;
+var minPitch = -60;
+var maxPitch = 60;
 
 var canvas, canvasBg;
-var roll, pitch, yaw;
-var targetYaw, targetRoll;
+var pitch, yaw;
+var targetYaw, targetPitch;
 var centerPercent;
 
-var hintVisibility, hintDirection, prevYaw, prevRoll;
+var hintVisibility, hintDirection, prevYaw, prevPitch;
 
 var bgImg;
 var loading;
 
 function initialize()
 {
-	roll = 0; pitch = 0; yaw = 0;
-	//targetYaw = Math.random() * 360 - 180;
+	pitch = 0; yaw = 0;
 	targetYaw = 0;
-	//targetRoll = Math.random() * (maxRoll - minRoll) + minRoll;
-	targetRoll = -90;
+	targetPitch = 0;
 	centerPercent = 0;
 	
 	hintVisibility = 0;
@@ -61,28 +59,6 @@ function initialize()
 	bgImg = new Image();
 	bgImg.onload = function() { loading = false; draw(); drawBg(); }
 	bgImg.src = "panorama1.jpg"; //Photo by DAVID ILIFF. License: CC-BY-SA 3.0. Downloaded from wikipedia.org
-	
-	// test code, remove later
-	/*{
-		var lon1 = 0;
-		var lon2 = 57;
-		var dLon = lon2 - lon1;
-		while(dLon < -180) dLon += 360;
-		while(dLon > 180) dLon -= 360;
-		var lat1 = -(-90 + 90);
-		var lat2 = -(-128 + 90);
-		lon1 = lon1 * Math.PI / 180;
-		lon2 = lon2 * Math.PI / 180;
-		lat1 = lat1 * Math.PI / 180;
-		lat2 = lat2 * Math.PI / 180;
-		var bearing = Math.atan2(Math.sin(dLon) * Math.cos(lat2), 
-								 Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon));
-		//var maxLat = Math.acos(Math.abs(Math.sin(bearing)*Math.cos(lat1)));
-		//maxLat = maxLat * 180 / Math.PI;
-		hintDirection = bearing * 180 / Math.PI;
-		hintDirection = 360 - ((hintDirection + 270) % 360);
-		if(hintDirection > 180) hintDirection -= 360;
-	}*/
 	
 	resize();
 	update();
@@ -131,7 +107,7 @@ function draw()
 		var angleX = yaw - targetYaw;
 		while(angleX < -180) angleX += 360;
 		while(angleX > 180) angleX -= 360;
-		var angleY = roll - targetRoll;
+		var angleY = pitch - targetPitch;
 		if(Math.abs(angleX) < 40 && Math.abs(angleY) < 40)
 		{
 			var x = canvas.width / 2 + Math.sin(angleX * Math.PI / 180) * canvas.width;
@@ -178,7 +154,7 @@ function draw()
 			angleX = yaw - prevYaw;
 			while(angleX < -180) angleX += 360;
 			while(angleX > 180) angleX -= 360;
-			angleY = roll - prevRoll;
+			angleY = pitch - prevPitch;
 			if(Math.abs(angleX) < 40 && Math.abs(angleY) < 40)
 			{
 				var x = canvas.width / 2 + Math.sin(angleX * Math.PI / 180) * canvas.width;
@@ -204,19 +180,17 @@ function draw()
 			}
 		}
 		
-		/*cxt.font = "24pt Arial";
+		// debug info, uncomment as needed
+		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#000000";
-		cxt.fillText('Roll: ' + Math.round(roll).toString(), 10, 30);
-		cxt.fillText('Pitch: ' + Math.round(pitch).toString(), 10, 60);
-		cxt.fillText('Yaw: ' + Math.round(yaw).toString(), 10, 90);
-		cxt.fillText('Target Yaw: ' + Math.round(targetYaw).toString(), 10, 120);
-		cxt.fillText('Target Roll: ' + Math.round(targetRoll).toString(), 10, 150);
-		cxt.fillText('Prev Yaw: ' + Math.round(prevYaw).toString(), 10, 180);
-		cxt.fillText('Prev Roll: ' + Math.round(prevRoll).toString(), 10, 210);
-		cxt.fillText('Hint Direction: ' + Math.round(hintDirection).toString(), 10, 240);
-		cxt.fillText('Hint Visibility: ' + hintVisibility, 10, 270);*/
-		
-		//cxt.strokeRect(0, 0, canvas.width, canvas.height);
+		cxt.fillText('Pitch: ' + Math.round(pitch).toString(), 10, 30);
+		cxt.fillText('Yaw: ' + Math.round(yaw).toString(), 10, 60);
+		cxt.fillText('Target Yaw: ' + Math.round(targetYaw).toString(), 10, 90);
+		cxt.fillText('Target Pitch: ' + Math.round(targetPitch).toString(), 10, 120);
+		cxt.fillText('Prev Yaw: ' + Math.round(prevYaw).toString(), 10, 150);
+		cxt.fillText('Prev Pitch: ' + Math.round(prevPitch).toString(), 10, 180);
+		cxt.fillText('Hint Direction: ' + Math.round(hintDirection).toString(), 10, 210);
+		cxt.fillText('Orientation: ' + Math.round(window.orientation).toString(), 10, 240);
 	}
 }
 
@@ -236,11 +210,20 @@ function drawBg()
 	
 	//canvasBg.width = canvasBg.width; // may be faster for some browsers
 	
-	// draw background
-	var bgWidth = 2 * bgImg.width;
-	var bgHeight = 2 * bgImg.height;
+	// scale background image for better augmented reality experience
+	var scaleFactor = 1;
+	switch(window.orientation)
+	{
+	case 0: scaleFactor = 3; break;
+	case 90:
+	case -90: scaleFactor = 2; break;
+	}
+	var bgWidth = scaleFactor * bgImg.width;
+	var bgHeight = scaleFactor * bgImg.height;
+	
+	// position and draw background image (twice for seamless panorama)
 	var bgX = bgWidth * yaw / 360;
-	var bgY = -bgHeight * (roll + 180 - 40) / 180;
+	var bgY = -bgHeight * (pitch + 90 - 40) / 180;
 	if(bgY > 0) bgY = 0;
 	if(bgY + bgHeight < canvasBg.height) bgY = canvasBg.height - bgHeight;
 	cxt.drawImage(bgImg, bgX, bgY, bgWidth, bgHeight);
@@ -250,10 +233,41 @@ function drawBg()
 function orientationChanged(e)
 {
 	if(e.alpha != null)
-	{
-		roll = e.gamma;
-		pitch = e.beta;
-		yaw = e.alpha;
+	{		
+		if(window.orientation == 90)
+		{
+			pitch = e.gamma + 90;
+			yaw = e.alpha;
+		}
+		else if(window.orientation == -90)
+		{
+			pitch = -e.gamma + 90;
+			yaw = e.alpha;
+		}
+		else if(window.orientation == 0)
+		{
+			// matrix derivations adapted from dev.w3.org/geo/api/spec-source-orientation.html
+			// R = ABCr
+			//     A is the 3D rotation matrix around the Z axis
+			//     B is the 3D rotation matrix around the X axis
+			//     C is the 3D rotation matrix around the Y axis
+			//     r is the 3D reference vector in device coordinates
+			//     R is the calculated 3D vector in world coordinates
+		
+			var a = e.alpha * Math.PI / 180;
+			var b = e.beta * Math.PI / 180;
+			var c = e.gamma * Math.PI / 180;
+			
+			var Rx = -Math.cos(a) * Math.sin(c) - Math.sin(a) * Math.sin(b) * Math.cos(c);
+			var Ry = -Math.sin(a) * Math.sin(c) + Math.cos(a) * Math.sin(b) * Math.cos(c);
+			var Rz = -Math.cos(b) * Math.cos(c);
+			
+			yaw = Math.atan2(Rx, Ry);
+			pitch = Math.atan2(Math.sqrt(Rx * Rx + Ry * Ry), Rz);
+			
+			yaw = -yaw * 180 / Math.PI;
+			pitch = pitch * 180 / Math.PI - 90;
+		}
 		
 		if(yaw > 180) yaw -= 360;
 	}
@@ -266,7 +280,7 @@ function update()
 		var angleX = yaw - targetYaw;
 		while(angleX < -180) angleX += 360;
 		while(angleX > 180) angleX -= 360;
-		var angleY = roll - targetRoll;
+		var angleY = pitch - targetPitch;
 		if(Math.abs(angleX) < 10 && Math.abs(angleY) < 10)
 			centerPercent += 2;
 		else
@@ -278,24 +292,12 @@ function update()
 		{
 			hintVisibility = 1;
 			prevYaw = targetYaw;
-			prevRoll = targetRoll;
+			prevPitch = targetPitch;
 		
 			targetYaw = Math.random() * 360 - 180;
 			//targetYaw = Math.random() * 60 - 30;
-			targetRoll = Math.random() * (maxRoll - minRoll) + minRoll;
+			targetPitch = Math.random() * (maxPitch - minPitch) + minPitch;
 			centerPercent = 0;
-			
-			//var hintX = (((targetYaw - prevYaw + 360) % 360) - 180) / 180;
-			//var hintY = (targetRoll - prevRoll) / 180;
-			//hintDirection = Math.atan2(hintY, hintX) * 180 / Math.PI;
-			
-			/*var angleX = prevYaw - targetYaw;
-			while(angleX < -180) angleX += 360;
-			while(angleX > 180) angleX -= 360;
-			var angleY = prevRoll - targetRoll;
-			var x = Math.sin(angleX * Math.PI / 180);
-			var y = Math.sin(angleY * Math.PI / 180);
-			hintDirection = Math.atan2(y, x) * 180 / Math.PI;*/
 			
 			// find the great circle bearing between targets
 			var lon1 = prevYaw;
@@ -303,26 +305,18 @@ function update()
 			var dLon = lon2 - lon1;
 			while(dLon < -180) dLon += 360;
 			while(dLon > 180) dLon -= 360;
-			var lat1 = -(prevRoll + 90);
-			var lat2 = -(targetRoll + 90);
+			var lat1 = -prevPitch;
+			var lat2 = -targetPitch;
 			lon1 = lon1 * Math.PI / 180;
 			lon2 = lon2 * Math.PI / 180;
 			lat1 = lat1 * Math.PI / 180;
 			lat2 = lat2 * Math.PI / 180;
+			dLon = dLon * Math.PI / 180;
 			var bearing = Math.atan2(Math.sin(dLon) * Math.cos(lat2), 
 									 Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon));
-			//var maxLat = Math.acos(Math.abs(Math.sin(bearing)*Math.cos(lat1)));
-			//maxLat = maxLat * 180 / Math.PI;
 			hintDirection = bearing * 180 / Math.PI;
-			hintDirection = 360 - ((hintDirection + 270) % 360);
+			hintDirection = hintDirection + 90;
 			if(hintDirection > 180) hintDirection -= 360;
-			/*if(maxLat > 60)
-			{
-				if(hintDirection > 60 && hintDirection <= 90) hintDirection = 60;
-				else if(hintDirection > 90 && hintDirection < 120) hintDirectin = 120;
-				else if(hintDirection > 240 && hintDirection <= 270) hintDirection = 240;
-				else if(hintDirection > 270 && hintDirection < 300) hintDirection = 300;
-			}*/
 		}
 	
 		draw();
@@ -330,34 +324,6 @@ function update()
 	}
 	
 	requestAnimFrame(update);
-}
-
-// get the mouse or touch position from the event variable for various browsers
-function getPosition(e)
-{
-	return getCanvasPosition(e, canvas);
-}
-
-function getCanvasPosition(e, canvas)
-{
-	var x, y;
-	
-	if (e.layerX || e.layerX == 0) { // Firefox, Chrome, IE9, Desktop Safari
-		x = e.layerX;
-		y = e.layerY;
-		x -= canvas.offsetLeft;
-		y -= canvas.offsetTop;
-	} else if (e.offsetX || e.offsetX == 0) { // Opera
-		x = e.offsetX;
-		y = e.offsetY;
-	} else { // iOS Safari
-		x = e.pageX;
-		y = e.pageY;
-		x -= canvas.offsetLeft;
-		y -= canvas.offsetTop;
-	}
-	
-	return {x: x, y: y};
 }
 
 // shim layer with setTimeout fallback
