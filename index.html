@@ -1,5 +1,8 @@
 <html>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
+<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta names="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
 
 <head>
@@ -28,6 +31,9 @@ z-index: -1;
 
 <script type="text/javascript">
 
+var GameModes = { Loading: 0, NewGame: 1, Playing: 2 }
+var mode = GameModes.Loading;
+
 var minPitch = -60;
 var maxPitch = 60;
 
@@ -39,7 +45,8 @@ var centerPercent;
 var hintVisibility, hintDirection, prevYaw, prevPitch;
 
 var bgImg;
-var loading;
+
+var startTime, totalElapsedTime;
 
 function initialize()
 {
@@ -54,10 +61,13 @@ function initialize()
 	canvasBg = document.getElementById('secondCanvas');
 	if(window.DeviceOrientationEvent)
 		window.addEventListener('deviceorientation', orientationChanged, false);
+		
+	window.addEventListener('mousedown', function(e) { click(getPosition(e)); }, false);
+	window.addEventListener('touchstart', function(e) { click(getPosition(e.touches[0])); }, false);
 	
 	loading = true;
 	bgImg = new Image();
-	bgImg.onload = function() { loading = false; draw(); drawBg(); }
+	bgImg.onload = function() { mode = GameModes.NewGame; draw(); drawBg(); }
 	bgImg.src = "panorama1.jpg"; //Photo by DAVID ILIFF. License: CC-BY-SA 3.0. Downloaded from wikipedia.org
 	
 	resize();
@@ -96,13 +106,29 @@ function draw()
 	
 	canvas.width = canvas.width; // may be faster for some browsers
 	
-	if(loading)
+	if(mode == GameModes.Loading)
 	{
 		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#000000";
 		cxt.fillText('Loading...', window.innerWidth / 2 - cxt.measureText("Loading...").width / 2, window.innerHeight / 2);
 	}
-	else
+	else if(mode == GameModes.NewGame)
+	{
+		cxt.fillStyle = "#4455cc";
+		cxt.globalAlpha = 0.3;
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.fill();
+		cxt.globalAlpha = 1;
+		cxt.strokeStyle = "#ffffff";
+		cxt.lineWidth = 2;
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.stroke();
+		
+		cxt.font = "24pt Arial";
+		cxt.fillStyle = "#ffffff";
+		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 12);
+	}
+	else if(mode == GameModes.Playing)
 	{
 		var angleX = yaw - targetYaw;
 		while(angleX < -180) angleX += 360;
@@ -180,8 +206,14 @@ function draw()
 			}
 		}
 		
+		// draw the targeting reticle
+		cxt.beginPath();
+		cxt.strokeStyle = "#000000";
+		cxt.arc(canvas.width/2, canvas.height/2, 10, 2 * Math.PI, false);
+		cxt.stroke();
+		
 		// debug info, uncomment as needed
-		cxt.font = "24pt Arial";
+		/*cxt.font = "24pt Arial";
 		cxt.fillStyle = "#000000";
 		cxt.fillText('Pitch: ' + Math.round(pitch).toString(), 10, 30);
 		cxt.fillText('Yaw: ' + Math.round(yaw).toString(), 10, 60);
@@ -190,7 +222,7 @@ function draw()
 		cxt.fillText('Prev Yaw: ' + Math.round(prevYaw).toString(), 10, 150);
 		cxt.fillText('Prev Pitch: ' + Math.round(prevPitch).toString(), 10, 180);
 		cxt.fillText('Hint Direction: ' + Math.round(hintDirection).toString(), 10, 210);
-		cxt.fillText('Orientation: ' + Math.round(window.orientation).toString(), 10, 240);
+		cxt.fillText('Orientation: ' + Math.round(window.orientation).toString(), 10, 240);*/
 	}
 }
 
@@ -214,10 +246,11 @@ function drawBg()
 	var scaleFactor = 1;
 	switch(window.orientation)
 	{
-	case 0: scaleFactor = 3; break;
-	case 90:
-	case -90: scaleFactor = 2; break;
+		case 0: scaleFactor = 3; break;
+		case 90:
+		case -90: scaleFactor = 2; break;
 	}
+	if(canvas.width > canvas.height) scaleFactor = 2;
 	var bgWidth = scaleFactor * bgImg.width;
 	var bgHeight = scaleFactor * bgImg.height;
 	
@@ -273,16 +306,28 @@ function orientationChanged(e)
 	}
 }
 
+function click(p)
+{
+	if(mode = GameModes.NewGame && 
+	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
+	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
+	{
+		mode = GameModes.Playing;
+		drawBg();
+		draw();
+	}
+}
+
 function update()
 {
-	if(!loading)
+	if(mode == GameModes.Playing)
 	{
 		var angleX = yaw - targetYaw;
 		while(angleX < -180) angleX += 360;
 		while(angleX > 180) angleX -= 360;
 		var angleY = pitch - targetPitch;
-		if(Math.abs(angleX) < 10 && Math.abs(angleY) < 10)
-			centerPercent += 2;
+		if(Math.abs(angleX) < 5 && Math.abs(angleY) < 5)
+			centerPercent += 3; // use to control how long the target needs to be centered
 		else
 			centerPercent = 0;
 			
@@ -299,34 +344,46 @@ function update()
 			targetPitch = Math.random() * (maxPitch - minPitch) + minPitch;
 			centerPercent = 0;
 			
-			// find the great circle bearing between targets
+			// convert to latitude and longitude framework
 			var lon1 = prevYaw;
 			var lon2 = targetYaw;
+			var lat1 = -prevPitch;
+			var lat2 = -targetPitch;
+			
+			// find the difference in longitude for the great circle equations
 			var dLon = lon2 - lon1;
 			while(dLon < -180) dLon += 360;
 			while(dLon > 180) dLon -= 360;
-			var lat1 = -prevPitch;
-			var lat2 = -targetPitch;
+			
+			// convert to degrees
 			lon1 = lon1 * Math.PI / 180;
 			lon2 = lon2 * Math.PI / 180;
 			lat1 = lat1 * Math.PI / 180;
 			lat2 = lat2 * Math.PI / 180;
 			dLon = dLon * Math.PI / 180;
+			
+			// find the great circle bearing between targets
+			// great circle equation adapted from http://www.movable-type.co.uk/scripts/latlong.html
 			var bearing = Math.atan2(Math.sin(dLon) * Math.cos(lat2), 
 									 Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon));
+			
+			// use the calculated bearing to create a hint arrow for the direction the user should turn
 			hintDirection = bearing * 180 / Math.PI;
 			hintDirection = hintDirection + 90;
 			if(hintDirection > 180) hintDirection -= 360;
 		}
 	
 		draw();
-		drawBg();
 	}
+	
+	if(mode != GameModes.Loading)
+		drawBg();
 	
 	requestAnimFrame(update);
 }
 
 // shim layer with setTimeout fallback
+// borrowed from Paul Irish at http://paulirish.com/2011/requestanimationframe-for-smart-animating/
 window.requestAnimFrame = (function(){
   return  window.requestAnimationFrame       || 
 		  window.webkitRequestAnimationFrame || 
@@ -337,6 +394,52 @@ window.requestAnimFrame = (function(){
 			window.setTimeout(callback, 1000 / 60);
 		  };
 })();
+
+// adds a canvas function for drawing a rounded rectangle
+// borrowed from stackoverflow user Corgalore in conversation found at http://stackoverflow.com/questions/1255512/how-to-draw-a-rounded-rectangle-on-html-canvas
+CanvasRenderingContext2D.prototype.roundRect = function(sx,sy,w,h,r) {
+    var r2d = Math.PI/180;
+	var ex = sx + w;
+	var ey = sy + h;
+    if( ( ex - sx ) - ( 2 * r ) < 0 ) { r = ( ( ex - sx ) / 2 ); } //ensure that the radius isn't too large for x
+    if( ( ey - sy ) - ( 2 * r ) < 0 ) { r = ( ( ey - sy ) / 2 ); } //ensure that the radius isn't too large for y
+    this.beginPath();
+    this.moveTo(sx+r,sy);
+    this.lineTo(ex-r,sy);
+    this.arc(ex-r,sy+r,r,r2d*270,r2d*360,false);
+    this.lineTo(ex,ey-r);
+    this.arc(ex-r,ey-r,r,r2d*0,r2d*90,false);
+    this.lineTo(sx+r,ey);
+    this.arc(sx+r,ey-r,r,r2d*90,r2d*180,false);
+    this.lineTo(sx,sy+r);
+    this.arc(sx+r,sy+r,r,r2d*180,r2d*270,false);
+    this.closePath();
+}
+
+// get the mouse or touch position from the event variable for various browsers
+// adapted from multiple answers at stackoverflow.com
+function getPosition(e) { return getCanvasPosition(e, canvasBg); }
+function getCanvasPosition(e, canvas)
+{
+	var x, y;
+	
+	if (e.layerX || e.layerX == 0) { // Firefox, Chrome, IE9, Desktop Safari
+		x = e.layerX;
+		y = e.layerY;
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+	} else if (e.offsetX || e.offsetX == 0) { // Opera
+		x = e.offsetX;
+		y = e.offsetY;
+	} else { // iOS Safari
+		x = e.pageX;
+		y = e.pageY;
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+	}
+	
+	return {x: x, y: y};
+}
 
 </script>
 
