@@ -64,6 +64,7 @@ function initialize()
 		
 	window.addEventListener('mousedown', function(e) { click(getPosition(e)); }, false);
 	window.addEventListener('touchstart', function(e) { click(getPosition(e.touches[0])); }, false);
+	window.addEventListener('touchmove', function(e) { e.preventDefault(); }, false);
 	
 	loading = true;
 	bgImg = new Image();
