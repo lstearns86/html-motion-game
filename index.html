@@ -65,6 +65,7 @@ function initialize()
 	window.addEventListener('mousedown', function(e) { click(getPosition(e)); }, false);
 	window.addEventListener('touchstart', function(e) { click(getPosition(e.touches[0])); }, false);
 	window.addEventListener('touchmove', function(e) { e.preventDefault(); }, false);
+	window.addEventListener('touchend', function(e) { e.preventDefault(); }, false);
 	
 	loading = true;
 	bgImg = new Image();
@@ -309,7 +310,7 @@ function orientationChanged(e)
 
 function click(p)
 {
-	if(mode = GameModes.NewGame && 
+	if(mode == GameModes.NewGame && 
 	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
 	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
 	{
