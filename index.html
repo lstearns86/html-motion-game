@@ -214,6 +214,16 @@ function draw()
 		cxt.arc(canvas.width/2, canvas.height/2, 10, 2 * Math.PI, false);
 		cxt.stroke();
 		
+		// draw the score/time display
+		cxt.font = "24pt Arial";
+		cxt.fillStyle = "#ffffff";
+		var minutes = Math.round(totalElapsedTime / (60 * 1000) % 60);
+		var seconds = Math.round(totalElapsedTime / 1000 % 60);
+		var milliseconds = Math.round(totalElapsedTime / 60 % 60);
+		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
+										 (seconds < 10 ? "0" : "") + seconds + ":" + 
+										 (milliseconds < 10 ? "0" : "") + milliseconds, 10, 30);
+		
 		// debug info, uncomment as needed
 		/*cxt.font = "24pt Arial";
 		cxt.fillStyle = "#000000";
@@ -315,6 +325,7 @@ function click(p)
 	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
 	{
 		mode = GameModes.Playing;
+		startTime = new Date();
 		drawBg();
 		draw();
 	}
@@ -324,6 +335,8 @@ function update()
 {
 	if(mode == GameModes.Playing)
 	{
+		totalElapsedTime = (new Date()) - startTime;
+	
 		var angleX = yaw - targetYaw;
 		while(angleX < -180) angleX += 360;
 		while(angleX > 180) angleX -= 360;
