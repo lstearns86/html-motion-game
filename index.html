@@ -76,6 +76,28 @@ function initialize()
 	window.addEventListener('touchstart', function(e) { click(getPosition(e.touches[0])); }, false);
 	window.addEventListener('touchmove', function(e) { e.preventDefault(); }, false);
 	window.addEventListener('touchend', function(e) { e.preventDefault(); }, false);
+	window.addEventListener('keydown', function(e) 
+	{
+		switch(e.keyCode)
+		{
+		case 37: // left arrow
+			yaw += 1;
+			if(yaw >= 180) yaw = -180;
+		break;
+		case 38: // up arrow
+			pitch -= 1;
+			if(pitch < -90) pitch = -90;
+		break;
+		case 39: // right arrow
+			yaw -= 1;
+			if(yaw < -180) yaw = 179
+		break;
+		case 40: // down arrow
+			pitch += 1;
+			if(pitch > 90) pitch = 90;
+		break;
+		}
+	}, false);
 	
 	loading = true;
 	bgImg = new Image();
@@ -167,6 +189,11 @@ function draw()
 			var r = ballPic.width / targets[i].distance;
 			var x = canvas.width / 2 + Math.tan(angleX * Math.PI / 180) * Math.max(canvas.width, canvas.height);
 			var y = canvas.height / 2 - Math.tan(angleY * Math.PI / 180) * Math.max(canvas.height, canvas.height);
+			if(Math.abs(angleX) > 80)
+			{
+				if(angleX > 0) x = 2 * canvas.width;
+				else if(angleX < 0) x = -2 * canvas.width;
+			}
 			if(x + r > 0 && x - r < canvas.width && y + r > 0 && y - r < canvas.height)
 			{
 				cxt.drawImage(ballPic, x - r , y - r, 2 * r, 2 * r);

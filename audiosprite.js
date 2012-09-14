@@ -73,7 +73,6 @@ Track.prototype.play = function (position) {
       audio.pause();
       audio.muted = true;
       clearInterval(track.timer);
-      player.playing = false;
     }
   }, 10);
 };
