@@ -9,80 +9,74 @@
 <title>HTML5 Portable Device Motion Experiment</title>
 
 <style type="text/css">
-#mainCanvas
-{
-width: 100%;
-height: 100%;
-margin: 0px;
-padding: 0px;
-position: absolute;
-z-index: 0;
-}
-#secondCanvas
-{
-width: 100%;
-height: 100%;
-margin: 0px;
-padding: 0px;
-position: absolute;
-z-index: -1;
-}
+    #mainCanvas
+    {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        position: absolute;
+        z-index: 0;
+    }
+    #secondCanvas
+    {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+        padding: 0px;
+        position: absolute;
+        z-index: -1;
+    }
 </style>
 
 <script type="text/javascript" src="audiosprite.js"></script>
 <script type="text/javascript">
 
-var NUM_WAVES_PER_DIFFICULTY_LEVEL = 5;
-var BALL_START_DISTANCE = 10;
-var BALL_SPEED = 1; // the ball will move 1 unit of distance closer per second
-var MAX_HEALTH = 5;
+    var NUM_WAVES_PER_DIFFICULTY_LEVEL = 5;
+    var BALL_START_DISTANCE = 10;
+    var BALL_SPEED = 1; // the ball will move 1 unit of distance closer per second
 
-var health = MAX_HEALTH;
-var wave = 0;
-var difficulty = 0;
-var minYaw = -30, maxYaw = 30;
-var minPitch = -10, maxPitch = 10;
-var numBallsPerWave = 1;
-var ballSpeedMultiplier = 1;
+    var wave = 0;
+    var difficulty = 0;
+    var minYaw = -30, maxYaw = 30;
+    var minPitch = -10, maxPitch = 10;
+    var numBallsPerWave = 1;
+    var ballSpeedMultiplier = 1;
 
-var targets = [];
+    var targets = [];
 
-var GameModes = { Loading: 0, NewGame: 1, Playing: 2, GameOver: 3 }
-var mode = GameModes.Loading;
+    var GameModes = { Loading: 0, NewGame: 1, Playing: 2 }
+    var mode = GameModes.Loading;
 
-var canvas, canvasBg;
-var pitch, yaw;
-var centerPercent;
+    var canvas, canvasBg;
+    var pitch, yaw;
+    var centerPercent;
 
-var bgImg, ballPic, heartImg, heartOutlineImg;
-var numResources = 4, numResourcesLoaded = 0;
-var widthDegrees, heightDegrees;
+    var bgImg, ballPic;
+    var numResources = 2, numResourcesLoaded = 0;
+    var widthDegrees, heightDegrees;
 
-var sounds;
-var ouchOpacity = 0;
+    var sounds;
+    var ouchOpacity = 0;
 
-var startTime, totalElapsedTime, lastTime, finishTime;
-var finishScore;
-var ballsHit = 0;
-var highScores = [];
-var newHighScore = -1;
+    var startTime, totalElapsedTime, lastTime;
+
+    //trajectory test
+    var DIS_PAD = 0.4;
+    //trajectory test
+    var PitchSpdArg = 10;
+    var yawSpdArg = 20;
+    var PITCH_ACC_ARG_STEP = 5;
+    var PITCH_SPD_ARG_STEP = 10;
+    var YAW_ACC_ARG_STEP = 5;
+    var YAW_SPD_ARG_STEP = 10;
+    var MIDDLE_TIME = BALL_START_DISTANCE / BALL_SPEED / 2;
 
 function initialize()
 {
 	pitch = 0; yaw = 0;
 	
 	hintVisibility = 0;
-	
-	if(localStorage.highScores)
-	{
-		var scoresString = localStorage.getItem('highScores');
-		var scores = scoresString.split(',');
-		for(var i = 0; i < scores.length; i++)
-		{
-			var score = parseInt(scores[i]);
-			highScores.push(score);
-		}
-	}
 
 	canvas = document.getElementById('mainCanvas');
 	canvasBg = document.getElementById('secondCanvas');
@@ -123,15 +117,7 @@ function initialize()
 	
 	ballPic = new Image();
 	ballPic.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
-	ballPic.src = "images/baseball2.png"; //Original photo link: http://richwielgosz.com/images/baseball.png
-	
-	heartImg = new Image();
-	heartImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
-	heartImg.src = "images/heart.png"; //Original photo link: http://www.gettyicons.com/free-icon/103/valentine-love-icon-set/free-heart-icon-png/
-	
-	heartOutlineImg = new Image();
-	heartOutlineImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
-	heartOutlineImg.src = "images/heart_outline.png";
+	ballPic.src = "images/baseball.png"; //Original photo link: http://richwielgosz.com/images/baseball.png
 	
 	sounds = new Track("sounds/sounds.mp3", 1, 0.25);
 	
@@ -221,18 +207,18 @@ function draw()
 			}
 			if(x + r > 0 && x - r < canvas.width && y + r > 0 && y - r < canvas.height)
 			{
+				cxt.drawImage(ballPic, x - r , y - r, 2 * r, 2 * r);
+				
 				if(targets[i].hitPercent > 0)
 				{
-					// draw hit percentage
+					// draw hit percentage (TODO: switch to bar below image?)
 					cxt.beginPath();
 					cxt.fillStyle = "#00ff00";
 					cxt.moveTo(x, y);
-					cxt.arc(x, y, r + 5, 0, 2 * Math.PI * targets[i].hitPercent / 100, false);
+					cxt.arc(x, y, 10, 0, 2 * Math.PI * targets[i].hitPercent / 100, false);
 					cxt.lineTo(x, y);
 					cxt.fill();
 				}
-			
-				cxt.drawImage(ballPic, x - r , y - r, 2 * r, 2 * r);
 			}
 			else // draw hint
 			{
@@ -315,19 +301,12 @@ function draw()
 		// draw the score/time display
 		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#ffffff";
-		var minutes = Math.floor(totalElapsedTime / (60 * 1000) % 60);
-		var seconds = Math.floor(totalElapsedTime / 1000 % 60);
-		var hundredths = Math.floor(totalElapsedTime / 10 % 100);
+		var minutes = Math.round(totalElapsedTime / (60 * 1000) % 60);
+		var seconds = Math.round(totalElapsedTime / 1000 % 60);
+		var milliseconds = Math.round(totalElapsedTime / 60 % 60);
 		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
 										 (seconds < 10 ? "0" : "") + seconds + ":" + 
-										 (hundredths < 10 ? "0" : "") + hundredths, 10, 30);
-
-		// draw the health
-		for(var i = 0; i < MAX_HEALTH; i++)
-		{
-			if(i + 1 <= health) cxt.drawImage(heartImg, canvas.width - (i + 1) * (heartImg.width + 10), 10, heartImg.width, heartImg.height);
-			else cxt.drawImage(heartOutlineImg, canvas.width - (i + 1) * (heartOutlineImg.width + 10), 10, heartOutlineImg.width, heartOutlineImg.height);
-		}
+										 (milliseconds < 10 ? "0" : "") + milliseconds, 10, 30);
 										 
 		if(ouchOpacity > 0)
 		{
@@ -335,50 +314,6 @@ function draw()
 			cxt.fillStyle = "#ff0000";
 			cxt.fillRect(0, 0, canvas.width, canvas.height);
 		}
-	}
-	else if(mode == GameModes.GameOver)
-	{
-		cxt.globalAlpha = ouchOpacity;
-		cxt.fillStyle = "#ff0000";
-		cxt.fillRect(0, 0, canvas.width, canvas.height);
-		cxt.globalAlpha = 1;
-		
-		cxt.font = "24pt Arial";
-		cxt.fillStyle = "#ffffff";
-		var minutes = Math.floor(finishTime / (60 * 1000) % 60);
-		var seconds = Math.floor(finishTime / 1000 % 60);
-		var hundredths = Math.floor(finishTime / 10 % 100);
-		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
-										 (seconds < 10 ? "0" : "") + seconds + ":" + 
-										 (hundredths < 10 ? "0" : "") + hundredths, 10, 30);
-		cxt.fillText('Difficulty Level: ' + difficulty, 10, 60);
-		cxt.fillText('Number of Balls Hit: ' + ballsHit, 10, 90);
-		cxt.fillText('Final Score: ' + finishScore, 10, 120);
-		
-		cxt.fillText('High Scores:', canvas.width - 200, 30);
-		for(var i = 0; i < highScores.length; i++)
-		{
-			cxt.fillStyle = newHighScore == i ? "#ffff00" : "#ffffff";
-			cxt.fillText((i + 1) + ': ' + highScores[i], canvas.width - 200, 60 + i * 30);
-		}
-		if(newHighScore >= 0)
-		{
-			cxt.fillStyle = "#ffff00";
-			cxt.fillText("New High Score!", canvas.width - 200 - cxt.measureText("New High Score!").width - 10, 60 + newHighScore * 30);
-		}
-		
-		cxt.fillStyle = "#4455cc";
-		cxt.globalAlpha = 0.3;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
-		cxt.fill();
-		cxt.globalAlpha = 1;
-		cxt.strokeStyle = "#ffffff";
-		cxt.lineWidth = 2;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
-		cxt.stroke();
-		
-		cxt.fillStyle = "#ffffff";
-		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 12);
 	}
 }
 
@@ -423,7 +358,15 @@ function addTarget()
 {
 	var x = Math.random() * (maxYaw - minYaw) + minYaw;
 	var y = Math.random() * (maxPitch - minPitch) + minPitch;
-	var target = { yaw: x, pitch: y, distance: 10, hitPercent: 0 };
+
+    //pitch speed keeps positive
+	var pitchSpd = Math.random() * 2 * PitchSpdArg;
+	var pitchAcc = -pitchSpd / MIDDLE_TIME;
+
+	var yawSpd = Math.random() * 2 * yawSpdArg - yawSpdArg;
+	var yawAcc = -yawSpd / MIDDLE_TIME;
+
+	var target = { yaw: x, pitch: y, distance: 10, hitPercent: 0, pitchAcc: pitchAcc, pitchSpd: pitchSpd, yawAcc: yawAcc, yawSpd: yawSpd };
 	targets.push(target);
 }
 
@@ -475,36 +418,27 @@ function orientationChanged(e)
 	}
 }
 
-function newGame()
-{
-	newHighScore = -1;
-	targets = [];
-	difficulty = 0;
-	wave = 0;
-	health = MAX_HEALTH;
-	ouchOpacity = 0;
-	minYaw = -30; maxYaw = 30;
-	minPitch = -10; maxPitch = 10;
-	numBallsPerWave = 1;
-	ballSpeedMultiplier = 1;
-	ballsHit = 0;
-	addTarget();
-	mode = GameModes.Playing;
-	startTime = new Date();
-	lastTime = startTime;
-	drawBg();
-	draw();
+function logOut(message) {
+    var cxt = canvas.getContext('2d');
+    cxt.font = "24pt Arial";
+    cxt.fillStyle = "#ffffff";
+    cxt.fillText(message.toString(), 50, 50);
 }
 
 function click(p)
 {
-	if((mode == GameModes.NewGame || mode == GameModes.GameOver) && 
+	if(mode == GameModes.NewGame && 
 	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
 	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
 	{
 		sounds.audio.play();
 	
-		newGame();
+		addTarget();
+		mode = GameModes.Playing;
+		startTime = new Date();
+		lastTime = startTime;
+		drawBg();
+		draw();
 	}
 }
 
@@ -512,13 +446,13 @@ function increaseDifficulty()
 {
 	difficulty = difficulty + 1;
 	
-	if(difficulty == 1) { minYaw = -60; maxYaw = 60; }
-	else if(difficulty == 2) { minYaw = -90; maxYaw = 90; }
-	else if(difficulty >= 3) { minYaw = -180; maxYaw = 180; }
+	if (difficulty == 1) { minYaw = -60; maxYaw = 60; yawSpdArg += YAW_SPD_ARG_STEP; }
+	else if (difficulty == 2) { minYaw = -90; maxYaw = 90; yawSpdArg += YAW_SPD_ARG_STEP; }
+	else if (difficulty >= 3) { minYaw = -180; maxYaw = 180; yawSpdArg += YAW_SPD_ARG_STEP; }
 	
-	if(difficulty == 4) { minPitch = -20; maxPitch = 20; }
-	else if(difficulty == 5) { minPitch = -30; maxPitch = 30; }
-	else if(difficulty >= 6) { minPitch = -60; maxPitch = 60; }
+	if (difficulty == 4) { minPitch = -20; maxPitch = 20; PitchSpdArg += PITCH_SPD_ARG_STEP; }
+	else if (difficulty == 5) { minPitch = -30; maxPitch = 30; PitchSpdArg += PITCH_SPD_ARG_STEP; }
+	else if (difficulty >= 6) { minPitch = -60; maxPitch = 60;}
 	
 	if(difficulty >= 4) numBallsPerWave = Math.floor(difficulty / 2);
 	if(difficulty >= 5) ballSpeedMultiplier = 1 + 0.25 * Math.floor((difficulty - 3) / 2);
@@ -532,22 +466,36 @@ function update()
 		totalElapsedTime = currTime - startTime;
 		var elapsed = (currTime - lastTime) / 1000;
 		lastTime = currTime;
-		if(health > 2)
-			ouchOpacity -= 0.01 * health
-		else if(health == 2)
-			ouchOpacity -= 0.005;
-		else
-			ouchOpacity -= 0.001;
+		ouchOpacity -= 0.05;
 	
 		for(var i = 0; i < targets.length; i++)
-		{			
+		{
+		    //trajectory test
+		    var pitchAngularSpeed = DIS_PAD * (targets[i].pitchSpd + targets[i].pitchAcc * totalElapsedTime) / Math.pow((targets[i].distance - BALL_SPEED * totalElapsedTime), 1);
+		    var yawAngularSpeed = DIS_PAD * (targets[i].yawSpd + targets[i].yawAcc * totalElapsedTime) / Math.pow((targets[i].distance - BALL_SPEED * totalElapsedTime), 1);
+		    console.log([targets[i].distance, targets[i].pitchSpd, targets[i].pitchAcc]);
+
+		    targets[i].pitch += pitchAngularSpeed * elapsed;
+		    targets[i].yaw += yawAngularSpeed * elapsed;
+
+		    if (targets[i].pitch < -90)
+		        targets[i].pitch = -90;
+		    if (targets[i].pitch > 90)
+		        targests[i].pitch = 90;
+		    if (targets[i].yaw < -180)
+		        targets[i].yaw += 360;
+		    if (targets[i].yaw > 180)
+		        targets[i].yaw -= 360;
+		    
+
+		    logOut(targets[i].yaw);
+
 			targets[i].distance -= elapsed * BALL_SPEED * ballSpeedMultiplier;
 			if(targets[i].distance <= 1)
 			{
 				// We're hit!
 				sounds.play(1);
 				ouchOpacity = 0.5;
-				health -= 1;
 				clearTarget(i);
 				i--;
 				continue;
@@ -557,11 +505,9 @@ function update()
 			while(angleX < -180) angleX += 360;
 			while(angleX > 180) angleX -= 360;
 			var angleY = pitch - targets[i].pitch;
-			var r = ballPic.width / targets[i].distance;
-			var x = canvas.width / 2 + Math.tan(angleX * Math.PI / 180) * Math.max(canvas.width, canvas.height);
-			var y = canvas.height / 2 - Math.tan(angleY * Math.PI / 180) * Math.max(canvas.height, canvas.height);
-			var dist = Math.sqrt((canvas.width / 2 - x) * (canvas.width / 2 - x) + (canvas.height / 2 - y) * (canvas.height / 2 - y));
-			if(dist <= r)
+			var targetRadius = ballPic.width / targets[i].distance;
+			var targetRadiusDegrees = (2 * targetRadius) / canvas.width * widthDegrees;
+			if(Math.abs(angleX) < targetRadiusDegrees && Math.abs(angleY) < targetRadiusDegrees)
 				targets[i].hitPercent += elapsed * 200; // use to control how long the target needs to be centered
 			else
 				targets[i].hitPercent = 0;
@@ -569,43 +515,12 @@ function update()
 			if(targets[i].hitPercent >= 100)
 			{
 				sounds.play(0);
-				ballsHit++;
 				clearTarget(i);
 				i--;
 			}
 		}
 		
-		if(health <= 0)
-		{
-			mode = GameModes.GameOver;
-			finishTime = totalElapsedTime;
-			finishScore = 0;
-			var numSeconds = finishTime / 1000;
-			finishScore += Math.round(1000 * ballsHit * difficulty / numSeconds); // number of balls divided by number of seconds / 10
-			targets = [];
-			ouchOpacity = 0.75;
-			
-			var highScoreString = "";
-			for(var i = 0; i < highScores.length; i++)
-			{
-				if(finishScore > highScores[i])
-				{
-					highScores.splice(i, 0, finishScore);
-					while(highScores.length > 5) highScores.splice(5,1);
-					newHighScore = i;
-				}
-				highScoreString += highScores[i] + ",";
-			}
-			if(newHighScore < 0 && highScores.length < 5)
-			{
-				highScores.push(finishScore);
-				highScoreString += finishScore + ",";
-				newHighScore = highScores.length - 1;
-			}
-			highScoreString = highScoreString.substring(0, highScoreString.length - 1);
-			localStorage.highScores = highScoreString;
-		}
-		else if(targets.length == 0)
+		if(targets.length == 0)
 		{
 			wave++;
 			if(wave >= NUM_WAVES_PER_DIFFICULTY_LEVEL) { wave = 0; increaseDifficulty(); }
@@ -679,6 +594,7 @@ function getCanvasPosition(e, canvas)
 	
 	return {x: x, y: y};
 }
+
 </script>
 
 </head>
