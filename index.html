@@ -434,15 +434,15 @@ function addTarget()
 {
 	var x = Math.random() * (maxYaw - minYaw) + minYaw;
 	var y = Math.random() * (maxPitch - minPitch) + minPitch;
-
-    //pitch speed keeps positive
+	
+	//pitch speed keeps positive
 	var pitchSpd = Math.random() * 2 * PitchSpdArg;
 	var pitchAcc = -pitchSpd / MIDDLE_TIME;
 
 	var yawSpd = Math.random() * 2 * yawSpdArg - yawSpdArg;
 	var yawAcc = -yawSpd / MIDDLE_TIME;
-
-	var target = { yaw: x, pitch: y, distance: 10, hitPercent: 0 };
+	
+	var target = { yaw: x, pitch: y, distance: 10, hitPercent: 0, pitchAcc: pitchAcc, pitchSpd: pitchSpd, yawAcc: yawAcc, yawSpd: yawSpd };
 	targets.push(target);
 }
 
@@ -534,10 +534,10 @@ function increaseDifficulty()
 	if (difficulty == 1) { minYaw = -60; maxYaw = 60; yawSpdArg += YAW_SPD_ARG_STEP; }
 	else if (difficulty == 2) { minYaw = -90; maxYaw = 90; yawSpdArg += YAW_SPD_ARG_STEP; }
 	else if (difficulty >= 3) { minYaw = -180; maxYaw = 180; yawSpdArg += YAW_SPD_ARG_STEP; }
-
+	
 	if (difficulty == 4) { minPitch = -20; maxPitch = 20; PitchSpdArg += PITCH_SPD_ARG_STEP; }
 	else if (difficulty == 5) { minPitch = -30; maxPitch = 30; PitchSpdArg += PITCH_SPD_ARG_STEP; }
-	else if (difficulty >= 6) { minPitch = -60; maxPitch = 60; }
+	else if (difficulty >= 6) { minPitch = -60; maxPitch = 60;}
 	
 	if(difficulty >= 4) numBallsPerWave = Math.floor(difficulty / 2);
 	if(difficulty >= 5) ballSpeedMultiplier = 1 + 0.25 * Math.floor((difficulty - 3) / 2);
@@ -559,8 +559,8 @@ function update()
 			ouchOpacity -= 0.001;
 	
 		for(var i = 0; i < targets.length; i++)
-		{
-		    //trajectory test
+		{			
+			//trajectory test
 		    var pitchAngularSpeed = DIS_PAD * (targets[i].pitchSpd + targets[i].pitchAcc * totalElapsedTime) / Math.pow((targets[i].distance - BALL_SPEED * totalElapsedTime), 1);
 		    var yawAngularSpeed = DIS_PAD * (targets[i].yawSpd + targets[i].yawAcc * totalElapsedTime) / Math.pow((targets[i].distance - BALL_SPEED * totalElapsedTime), 1);
 		    console.log([targets[i].distance, targets[i].pitchSpd, targets[i].pitchAcc]);
@@ -576,7 +576,7 @@ function update()
 		        targets[i].yaw += 360;
 		    if (targets[i].yaw > 180)
 		        targets[i].yaw -= 360;
-
+		
 			targets[i].distance -= elapsed * BALL_SPEED * ballSpeedMultiplier;
 			if(targets[i].distance <= 1)
 			{
@@ -624,7 +624,7 @@ function update()
 			var highScoreString = "";
 			for(var i = 0; i < highScores.length; i++)
 			{
-				if(finishScore > highScores[i])
+				if(newHighScore < 0 && finishScore > highScores[i])
 				{
 					highScores.splice(i, 0, finishScore);
 					while(highScores.length > 5) highScores.splice(5,1);
