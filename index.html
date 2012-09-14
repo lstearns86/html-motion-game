@@ -54,8 +54,8 @@ var canvas, canvasBg;
 var pitch, yaw;
 var centerPercent;
 
-var bgImg, ballPic, heartImg, heartOutlineImg;
-var numResources = 4, numResourcesLoaded = 0;
+var bgImg, ballPic, heartImg, heartOutlineImg, logoImg;
+var numResources = 5, numResourcesLoaded = 0;
 var widthDegrees, heightDegrees;
 
 var sounds;
@@ -144,6 +144,10 @@ function initialize()
 	heartOutlineImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
 	heartOutlineImg.src = "images/heart_outline.png";
 	
+	logoImg = new Image();
+	logoImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
+	logoImg.src = "images/logo.png";
+	
 	sounds = new Track("sounds/sounds.mp3", 1, 0.25);
 	
 	resize();
@@ -200,19 +204,30 @@ function draw()
 	}
 	else if(mode == GameModes.NewGame)
 	{
+		cxt.drawImage(logoImg, canvas.width / 2 - logoImg.width / 2, canvas.height / 2 - logoImg.height);
+	
 		cxt.fillStyle = "#4455cc";
 		cxt.globalAlpha = 0.3;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
 		cxt.fill();
 		cxt.globalAlpha = 1;
 		cxt.strokeStyle = "#ffffff";
 		cxt.lineWidth = 2;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
 		cxt.stroke();
 		
 		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#ffffff";
-		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 12);
+		
+		var tutorialText = ["Baseballs are coming at you from all sides!",
+							"Keep them in your sights so that you can hit them over the horizon.",
+							"Watch out, it gets harder the longer you survive."];
+		
+		cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 + 22);
+		cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
+		cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
+		
+		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 212);
 	}
 	else if(mode == GameModes.Playing)
 	{
@@ -380,16 +395,24 @@ function draw()
 		
 		cxt.fillStyle = "#4455cc";
 		cxt.globalAlpha = 0.3;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
 		cxt.fill();
 		cxt.globalAlpha = 1;
 		cxt.strokeStyle = "#ffffff";
 		cxt.lineWidth = 2;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
 		cxt.stroke();
 		
 		cxt.fillStyle = "#ffffff";
-		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 12);
+		var tutorialText = ["Baseballs are coming at you from all sides!",
+							"Keep them in your sights so that you can hit them over the horizon.",
+							"Watch out, it gets harder the longer you survive."];
+		
+		cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 + 22);
+		cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
+		cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
+		
+		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 212);
 	}
 }
 
