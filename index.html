@@ -61,13 +61,28 @@ var widthDegrees, heightDegrees;
 var sounds;
 var ouchOpacity = 0;
 
-var startTime, totalElapsedTime, lastTime;
+var startTime, totalElapsedTime, lastTime, finishTime;
+var finishScore;
+var ballsHit = 0;
+var highScores = [];
+var newHighScore = -1;
 
 function initialize()
 {
 	pitch = 0; yaw = 0;
 	
 	hintVisibility = 0;
+	
+	if(localStorage.highScores)
+	{
+		var scoresString = localStorage.getItem('highScores');
+		var scores = scoresString.split(',');
+		for(var i = 0; i < scores.length; i++)
+		{
+			var score = parseInt(scores[i]);
+			highScores.push(score);
+		}
+	}
 
 	canvas = document.getElementById('mainCanvas');
 	canvasBg = document.getElementById('secondCanvas');
@@ -300,12 +315,12 @@ function draw()
 		// draw the score/time display
 		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#ffffff";
-		var minutes = Math.round(totalElapsedTime / (60 * 1000) % 60);
-		var seconds = Math.round(totalElapsedTime / 1000 % 60);
-		var milliseconds = Math.round(totalElapsedTime / 60 % 60);
+		var minutes = Math.floor(totalElapsedTime / (60 * 1000) % 60);
+		var seconds = Math.floor(totalElapsedTime / 1000 % 60);
+		var hundredths = Math.floor(totalElapsedTime / 10 % 100);
 		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
 										 (seconds < 10 ? "0" : "") + seconds + ":" + 
-										 (milliseconds < 10 ? "0" : "") + milliseconds, 10, 30);
+										 (hundredths < 10 ? "0" : "") + hundredths, 10, 30);
 
 		// draw the health
 		for(var i = 0; i < MAX_HEALTH; i++)
@@ -320,6 +335,50 @@ function draw()
 			cxt.fillStyle = "#ff0000";
 			cxt.fillRect(0, 0, canvas.width, canvas.height);
 		}
+	}
+	else if(mode == GameModes.GameOver)
+	{
+		cxt.globalAlpha = ouchOpacity;
+		cxt.fillStyle = "#ff0000";
+		cxt.fillRect(0, 0, canvas.width, canvas.height);
+		cxt.globalAlpha = 1;
+		
+		cxt.font = "24pt Arial";
+		cxt.fillStyle = "#ffffff";
+		var minutes = Math.floor(finishTime / (60 * 1000) % 60);
+		var seconds = Math.floor(finishTime / 1000 % 60);
+		var hundredths = Math.floor(finishTime / 10 % 100);
+		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
+										 (seconds < 10 ? "0" : "") + seconds + ":" + 
+										 (hundredths < 10 ? "0" : "") + hundredths, 10, 30);
+		cxt.fillText('Difficulty Level: ' + difficulty, 10, 60);
+		cxt.fillText('Number of Balls Hit: ' + ballsHit, 10, 90);
+		cxt.fillText('Final Score: ' + finishScore, 10, 120);
+		
+		cxt.fillText('High Scores:', canvas.width - 200, 30);
+		for(var i = 0; i < highScores.length; i++)
+		{
+			cxt.fillStyle = newHighScore == i ? "#ffff00" : "#ffffff";
+			cxt.fillText((i + 1) + ': ' + highScores[i], canvas.width - 200, 60 + i * 30);
+		}
+		if(newHighScore >= 0)
+		{
+			cxt.fillStyle = "#ffff00";
+			cxt.fillText("New High Score!", canvas.width - 200 - cxt.measureText("New High Score!").width - 10, 60 + newHighScore * 30);
+		}
+		
+		cxt.fillStyle = "#4455cc";
+		cxt.globalAlpha = 0.3;
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.fill();
+		cxt.globalAlpha = 1;
+		cxt.strokeStyle = "#ffffff";
+		cxt.lineWidth = 2;
+		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 - 50, 300, 100, 15);
+		cxt.stroke();
+		
+		cxt.fillStyle = "#ffffff";
+		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 12);
 	}
 }
 
@@ -416,20 +475,36 @@ function orientationChanged(e)
 	}
 }
 
+function newGame()
+{
+	newHighScore = -1;
+	targets = [];
+	difficulty = 0;
+	wave = 0;
+	health = MAX_HEALTH;
+	ouchOpacity = 0;
+	minYaw = -30; maxYaw = 30;
+	minPitch = -10; maxPitch = 10;
+	numBallsPerWave = 1;
+	ballSpeedMultiplier = 1;
+	ballsHit = 0;
+	addTarget();
+	mode = GameModes.Playing;
+	startTime = new Date();
+	lastTime = startTime;
+	drawBg();
+	draw();
+}
+
 function click(p)
 {
-	if(mode == GameModes.NewGame && 
+	if((mode == GameModes.NewGame || mode == GameModes.GameOver) && 
 	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
 	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
 	{
 		sounds.audio.play();
 	
-		addTarget();
-		mode = GameModes.Playing;
-		startTime = new Date();
-		lastTime = startTime;
-		drawBg();
-		draw();
+		newGame();
 	}
 }
 
@@ -457,7 +532,12 @@ function update()
 		totalElapsedTime = currTime - startTime;
 		var elapsed = (currTime - lastTime) / 1000;
 		lastTime = currTime;
-		ouchOpacity -= 0.01 * health;
+		if(health > 2)
+			ouchOpacity -= 0.01 * health
+		else if(health == 2)
+			ouchOpacity -= 0.005;
+		else
+			ouchOpacity -= 0.001;
 	
 		for(var i = 0; i < targets.length; i++)
 		{			
@@ -489,12 +569,43 @@ function update()
 			if(targets[i].hitPercent >= 100)
 			{
 				sounds.play(0);
+				ballsHit++;
 				clearTarget(i);
 				i--;
 			}
 		}
 		
-		if(targets.length == 0)
+		if(health <= 0)
+		{
+			mode = GameModes.GameOver;
+			finishTime = totalElapsedTime;
+			finishScore = 0;
+			var numSeconds = finishTime / 1000;
+			finishScore += Math.round(1000 * ballsHit * difficulty / numSeconds); // number of balls divided by number of seconds / 10
+			targets = [];
+			ouchOpacity = 0.75;
+			
+			var highScoreString = "";
+			for(var i = 0; i < highScores.length; i++)
+			{
+				if(finishScore > highScores[i])
+				{
+					highScores.splice(i, 0, finishScore);
+					while(highScores.length > 5) highScores.splice(5,1);
+					newHighScore = i;
+				}
+				highScoreString += highScores[i] + ",";
+			}
+			if(newHighScore < 0 && highScores.length < 5)
+			{
+				highScores.push(finishScore);
+				highScoreString += finishScore + ",";
+				newHighScore = highScores.length - 1;
+			}
+			highScoreString = highScoreString.substring(0, highScoreString.length - 1);
+			localStorage.highScores = highScoreString;
+		}
+		else if(targets.length == 0)
 		{
 			wave++;
 			if(wave >= NUM_WAVES_PER_DIFFICULTY_LEVEL) { wave = 0; increaseDifficulty(); }
@@ -568,7 +679,6 @@ function getCanvasPosition(e, canvas)
 	
 	return {x: x, y: y};
 }
-
 </script>
 
 </head>
