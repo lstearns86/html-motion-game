@@ -35,7 +35,9 @@ z-index: -1;
 var NUM_WAVES_PER_DIFFICULTY_LEVEL = 5;
 var BALL_START_DISTANCE = 10;
 var BALL_SPEED = 1; // the ball will move 1 unit of distance closer per second
+var MAX_HEALTH = 5;
 
+var health = MAX_HEALTH;
 var wave = 0;
 var difficulty = 0;
 var minYaw = -30, maxYaw = 30;
@@ -45,15 +47,15 @@ var ballSpeedMultiplier = 1;
 
 var targets = [];
 
-var GameModes = { Loading: 0, NewGame: 1, Playing: 2 }
+var GameModes = { Loading: 0, NewGame: 1, Playing: 2, GameOver: 3 }
 var mode = GameModes.Loading;
 
 var canvas, canvasBg;
 var pitch, yaw;
 var centerPercent;
 
-var bgImg, ballPic;
-var numResources = 2, numResourcesLoaded = 0;
+var bgImg, ballPic, heartImg, heartOutlineImg;
+var numResources = 4, numResourcesLoaded = 0;
 var widthDegrees, heightDegrees;
 
 var sounds;
@@ -106,7 +108,15 @@ function initialize()
 	
 	ballPic = new Image();
 	ballPic.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
-	ballPic.src = "images/baseball.png"; //Original photo link: http://richwielgosz.com/images/baseball.png
+	ballPic.src = "images/baseball2.png"; //Original photo link: http://richwielgosz.com/images/baseball.png
+	
+	heartImg = new Image();
+	heartImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
+	heartImg.src = "images/heart.png"; //Original photo link: http://www.gettyicons.com/free-icon/103/valentine-love-icon-set/free-heart-icon-png/
+	
+	heartOutlineImg = new Image();
+	heartOutlineImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
+	heartOutlineImg.src = "images/heart_outline.png";
 	
 	sounds = new Track("sounds/sounds.mp3", 1, 0.25);
 	
@@ -196,18 +206,18 @@ function draw()
 			}
 			if(x + r > 0 && x - r < canvas.width && y + r > 0 && y - r < canvas.height)
 			{
-				cxt.drawImage(ballPic, x - r , y - r, 2 * r, 2 * r);
-				
 				if(targets[i].hitPercent > 0)
 				{
-					// draw hit percentage (TODO: switch to bar below image?)
+					// draw hit percentage
 					cxt.beginPath();
 					cxt.fillStyle = "#00ff00";
 					cxt.moveTo(x, y);
-					cxt.arc(x, y, 10, 0, 2 * Math.PI * targets[i].hitPercent / 100, false);
+					cxt.arc(x, y, r + 5, 0, 2 * Math.PI * targets[i].hitPercent / 100, false);
 					cxt.lineTo(x, y);
 					cxt.fill();
 				}
+			
+				cxt.drawImage(ballPic, x - r , y - r, 2 * r, 2 * r);
 			}
 			else // draw hint
 			{
@@ -296,6 +306,13 @@ function draw()
 		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
 										 (seconds < 10 ? "0" : "") + seconds + ":" + 
 										 (milliseconds < 10 ? "0" : "") + milliseconds, 10, 30);
+
+		// draw the health
+		for(var i = 0; i < MAX_HEALTH; i++)
+		{
+			if(i + 1 <= health) cxt.drawImage(heartImg, canvas.width - (i + 1) * (heartImg.width + 10), 10, heartImg.width, heartImg.height);
+			else cxt.drawImage(heartOutlineImg, canvas.width - (i + 1) * (heartOutlineImg.width + 10), 10, heartOutlineImg.width, heartOutlineImg.height);
+		}
 										 
 		if(ouchOpacity > 0)
 		{
@@ -440,7 +457,7 @@ function update()
 		totalElapsedTime = currTime - startTime;
 		var elapsed = (currTime - lastTime) / 1000;
 		lastTime = currTime;
-		ouchOpacity -= 0.05;
+		ouchOpacity -= 0.01 * health;
 	
 		for(var i = 0; i < targets.length; i++)
 		{			
@@ -450,6 +467,7 @@ function update()
 				// We're hit!
 				sounds.play(1);
 				ouchOpacity = 0.5;
+				health -= 1;
 				clearTarget(i);
 				i--;
 				continue;
@@ -459,9 +477,11 @@ function update()
 			while(angleX < -180) angleX += 360;
 			while(angleX > 180) angleX -= 360;
 			var angleY = pitch - targets[i].pitch;
-			var targetRadius = ballPic.width / targets[i].distance;
-			var targetRadiusDegrees = (2 * targetRadius) / canvas.width * widthDegrees;
-			if(Math.abs(angleX) < targetRadiusDegrees && Math.abs(angleY) < targetRadiusDegrees)
+			var r = ballPic.width / targets[i].distance;
+			var x = canvas.width / 2 + Math.tan(angleX * Math.PI / 180) * Math.max(canvas.width, canvas.height);
+			var y = canvas.height / 2 - Math.tan(angleY * Math.PI / 180) * Math.max(canvas.height, canvas.height);
+			var dist = Math.sqrt((canvas.width / 2 - x) * (canvas.width / 2 - x) + (canvas.height / 2 - y) * (canvas.height / 2 - y));
+			if(dist <= r)
 				targets[i].hitPercent += elapsed * 200; // use to control how long the target needs to be centered
 			else
 				targets[i].hitPercent = 0;
