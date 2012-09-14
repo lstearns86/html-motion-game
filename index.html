@@ -29,31 +29,41 @@ z-index: -1;
 }
 </style>
 
+<script type="text/javascript" src="audiosprite.js"></script>
 <script type="text/javascript">
+
+var NUM_WAVES_PER_DIFFICULTY_LEVEL = 5;
+var BALL_START_DISTANCE = 10;
+var BALL_SPEED = 1; // the ball will move 1 unit of distance closer per second
+
+var wave = 0;
+var difficulty = 0;
+var minYaw = -30, maxYaw = 30;
+var minPitch = -10, maxPitch = 10;
+var numBallsPerWave = 1;
+var ballSpeedMultiplier = 1;
+
+var targets = [];
 
 var GameModes = { Loading: 0, NewGame: 1, Playing: 2 }
 var mode = GameModes.Loading;
 
-var minPitch = -60;
-var maxPitch = 60;
-
 var canvas, canvasBg;
 var pitch, yaw;
-var targetYaw, targetPitch;
 var centerPercent;
 
-var hintVisibility, hintDirection, prevYaw, prevPitch;
+var bgImg, ballPic;
+var numResources = 2, numResourcesLoaded = 0;
+var widthDegrees, heightDegrees;
 
-var bgImg;
+var sounds;
+var ouchOpacity = 0;
 
-var startTime, totalElapsedTime;
+var startTime, totalElapsedTime, lastTime;
 
 function initialize()
 {
 	pitch = 0; yaw = 0;
-	targetYaw = 0;
-	targetPitch = 0;
-	centerPercent = 0;
 	
 	hintVisibility = 0;
 
@@ -69,11 +79,24 @@ function initialize()
 	
 	loading = true;
 	bgImg = new Image();
-	bgImg.onload = function() { mode = GameModes.NewGame; draw(); drawBg(); }
-	bgImg.src = "panorama1.jpg"; //Photo by DAVID ILIFF. License: CC-BY-SA 3.0. Downloaded from wikipedia.org
+	bgImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
+	bgImg.src = "images/panorama1.jpg"; //Photo by DAVID ILIFF. License: CC-BY-SA 3.0. Downloaded from wikipedia.org
+	
+	ballPic = new Image();
+	ballPic.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
+	ballPic.src = "images/baseball.png"; //Original photo link: http://richwielgosz.com/images/baseball.png
+	
+	sounds = new Track("sounds/sounds.mp3", 1, 0.25);
 	
 	resize();
 	update();
+}
+
+function resourcesLoaded()
+{
+	mode = GameModes.NewGame; 
+	draw(); 
+	drawBg();
 }
 
 function resize()
@@ -87,6 +110,9 @@ function resize()
 	canvasBg.height = window.innerHeight;
 	canvasBg.style.left = '0px';
 	canvasBg.style.top = '0px';
+	
+	widthDegrees = 2 * Math.atan((canvas.width / 2) / Math.max(canvas.width, canvas.height)) * 180 / Math.PI;
+	heightDegrees = 2 * Math.atan((canvas.height / 2) / Math.max(canvas.width, canvas.height)) * 180 / Math.PI;
 
 	draw();
 	drawBg();
@@ -132,79 +158,99 @@ function draw()
 	}
 	else if(mode == GameModes.Playing)
 	{
-		var angleX = yaw - targetYaw;
-		while(angleX < -180) angleX += 360;
-		while(angleX > 180) angleX -= 360;
-		var angleY = pitch - targetPitch;
-		if(Math.abs(angleX) < 40 && Math.abs(angleY) < 40)
+		for(var i = 0; i < targets.length; i++)
 		{
-			var x = canvas.width / 2 + Math.sin(angleX * Math.PI / 180) * canvas.width;
-			var y = canvas.height / 2 - Math.sin(angleY * Math.PI / 180) * canvas.height;
-			
-			if(centerPercent > 0)
-			{
-				cxt.beginPath();
-				cxt.fillStyle = "#00ff00";
-				cxt.moveTo(x, y);
-				cxt.arc(x, y, 110, 0, 2 * Math.PI * centerPercent / 100, false);
-				cxt.lineTo(x, y);
-				cxt.fill();
-			}
-			
-			cxt.beginPath();
-			cxt.fillStyle = "#ff0000";
-			cxt.arc(x, y, 100, 2 * Math.PI, false);
-			cxt.fill();
-			
-			cxt.beginPath();
-			cxt.fillStyle = "#ffffff";
-			cxt.arc(x, y, 80, 2 * Math.PI, false);
-			cxt.fill();
-			
-			cxt.beginPath();
-			cxt.fillStyle = "#ff0000";
-			cxt.arc(x, y, 60, 2 * Math.PI, false);
-			cxt.fill();
-			
-			cxt.beginPath();
-			cxt.fillStyle = "#ffffff";
-			cxt.arc(x, y, 40, 2 * Math.PI, false);
-			cxt.fill();
-			
-			cxt.beginPath();
-			cxt.fillStyle = "#ff0000";
-			cxt.arc(x, y, 20, 2 * Math.PI, false);
-			cxt.fill();
-		}
-		
-		if(hintVisibility > 0)
-		{
-			angleX = yaw - prevYaw;
+			var angleX = yaw - targets[i].yaw;
 			while(angleX < -180) angleX += 360;
 			while(angleX > 180) angleX -= 360;
-			angleY = pitch - prevPitch;
-			if(Math.abs(angleX) < 40 && Math.abs(angleY) < 40)
+			var angleY = pitch - targets[i].pitch;
+			var r = ballPic.width / targets[i].distance;
+			var x = canvas.width / 2 + Math.tan(angleX * Math.PI / 180) * Math.max(canvas.width, canvas.height);
+			var y = canvas.height / 2 - Math.tan(angleY * Math.PI / 180) * Math.max(canvas.height, canvas.height);
+			if(x + r > 0 && x - r < canvas.width && y + r > 0 && y - r < canvas.height)
 			{
-				var x = canvas.width / 2 + Math.sin(angleX * Math.PI / 180) * canvas.width;
-				var y = canvas.height / 2 - Math.sin(angleY * Math.PI / 180) * canvas.height;
+				cxt.drawImage(ballPic, x - r , y - r, 2 * r, 2 * r);
 				
-				cxt.save();
-				cxt.globalAlpha = hintVisibility
-				cxt.translate(x, y);
-				cxt.rotate(-hintDirection * Math.PI / 180);
-				cxt.fillStyle = "#ffffff";
-				cxt.beginPath();
-				cxt.moveTo(-50, -5);
-				cxt.lineTo(-50, 5);
-				cxt.lineTo(25, 5);
-				cxt.lineTo(25, 25);
-				cxt.lineTo(50, 0);
-				cxt.lineTo(25, -25);
-				cxt.lineTo(25, -5);
-				cxt.lineTo(-25, -5);
-				cxt.fill();
-				cxt.globalAlpha = 1;
-				cxt.restore();
+				if(targets[i].hitPercent > 0)
+				{
+					// draw hit percentage (TODO: switch to bar below image?)
+					cxt.beginPath();
+					cxt.fillStyle = "#00ff00";
+					cxt.moveTo(x, y);
+					cxt.arc(x, y, 10, 0, 2 * Math.PI * targets[i].hitPercent / 100, false);
+					cxt.lineTo(x, y);
+					cxt.fill();
+				}
+			}
+			else // draw hint
+			{
+				cxt.fillStyle = "#000000";
+				cxt.strokeStyle = "#ffffff";
+				cxt.lineWidth = 2;
+				if(x + r < 0)
+				{
+					var hintY = y;
+					if(hintY < 30) hintY = 30;
+					else if(hintY > canvas.height - 30) hintY = canvas.height - 30;
+					cxt.beginPath();
+					cxt.moveTo(0, hintY);
+					cxt.lineTo(30, hintY - 30);
+					cxt.lineTo(30, hintY - 20);
+					cxt.lineTo(10, hintY);
+					cxt.lineTo(30, hintY + 20);
+					cxt.lineTo(30, hintY + 30);
+					cxt.lineTo(0, hintY);
+					cxt.fill();
+					cxt.stroke();
+				}
+				else if(x - r > canvas.width)
+				{
+					var hintY = y;
+					if(hintY < 30) hintY = 30;
+					else if(hintY > canvas.height - 30) hintY = canvas.height - 30;
+					cxt.beginPath();
+					cxt.moveTo(canvas.width - 1, hintY);
+					cxt.lineTo(canvas.width - 31, hintY - 30);
+					cxt.lineTo(canvas.width - 31, hintY - 20);
+					cxt.lineTo(canvas.width - 11, hintY);
+					cxt.lineTo(canvas.width - 31, hintY + 20);
+					cxt.lineTo(canvas.width - 31, hintY + 30);
+					cxt.lineTo(canvas.width - 1, hintY);
+					cxt.fill();
+					cxt.stroke();
+				}
+				else if(y + r < 0)
+				{
+					var hintX = x;
+					if(hintX < 30) hintX = 30;
+					else if(hintX > canvas.width - 30) hintX = canvas.width - 30;
+					cxt.beginPath();
+					cxt.moveTo(hintX, 0);
+					cxt.lineTo(hintX - 30, 30);
+					cxt.lineTo(hintX - 20, 30)
+					cxt.lineTo(hintX, 10);
+					cxt.lineTo(hintX + 20, 30);
+					cxt.lineTo(hintX + 30, 30);
+					cxt.lineTo(hintX, 0);
+					cxt.fill();
+					cxt.stroke();
+				}
+				else if(y - r > canvas.height)
+				{
+					var hintX = x;
+					if(hintX < 30) hintX = 30;
+					else if(hintX > canvas.width - 30) hintX = canvas.width - 30;
+					cxt.beginPath();
+					cxt.moveTo(hintX, canvas.height - 1);
+					cxt.lineTo(hintX - 30, canvas.height - 31);
+					cxt.lineTo(hintX - 20, canvas.height - 31)
+					cxt.lineTo(hintX, canvas.height - 11);
+					cxt.lineTo(hintX + 20, canvas.height - 31);
+					cxt.lineTo(hintX + 30, canvas.height - 31);
+					cxt.lineTo(hintX, canvas.height - 1);
+					cxt.fill();
+					cxt.stroke();
+				}
 			}
 		}
 		
@@ -223,18 +269,13 @@ function draw()
 		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
 										 (seconds < 10 ? "0" : "") + seconds + ":" + 
 										 (milliseconds < 10 ? "0" : "") + milliseconds, 10, 30);
-		
-		// debug info, uncomment as needed
-		/*cxt.font = "24pt Arial";
-		cxt.fillStyle = "#000000";
-		cxt.fillText('Pitch: ' + Math.round(pitch).toString(), 10, 30);
-		cxt.fillText('Yaw: ' + Math.round(yaw).toString(), 10, 60);
-		cxt.fillText('Target Yaw: ' + Math.round(targetYaw).toString(), 10, 90);
-		cxt.fillText('Target Pitch: ' + Math.round(targetPitch).toString(), 10, 120);
-		cxt.fillText('Prev Yaw: ' + Math.round(prevYaw).toString(), 10, 150);
-		cxt.fillText('Prev Pitch: ' + Math.round(prevPitch).toString(), 10, 180);
-		cxt.fillText('Hint Direction: ' + Math.round(hintDirection).toString(), 10, 210);
-		cxt.fillText('Orientation: ' + Math.round(window.orientation).toString(), 10, 240);*/
+										 
+		if(ouchOpacity > 0)
+		{
+			cxt.globalAlpha = ouchOpacity;
+			cxt.fillStyle = "#ff0000";
+			cxt.fillRect(0, 0, canvas.width, canvas.height);
+		}
 	}
 }
 
@@ -273,6 +314,19 @@ function drawBg()
 	if(bgY + bgHeight < canvasBg.height) bgY = canvasBg.height - bgHeight;
 	cxt.drawImage(bgImg, bgX, bgY, bgWidth, bgHeight);
 	cxt.drawImage(bgImg, bgX - bgWidth, bgY, bgWidth, bgHeight);
+}
+
+function addTarget()
+{
+	var x = Math.random() * (maxYaw - minYaw) + minYaw;
+	var y = Math.random() * (maxPitch - minPitch) + minPitch;
+	var target = { yaw: x, pitch: y, distance: 10, hitPercent: 0 };
+	targets.push(target);
+}
+
+function clearTarget(index)
+{
+	if(targets.length > index) targets.splice(index, 1);
 }
 
 function orientationChanged(e)
@@ -324,68 +378,80 @@ function click(p)
 	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
 	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
 	{
+		sounds.audio.play();
+	
+		addTarget();
 		mode = GameModes.Playing;
 		startTime = new Date();
+		lastTime = startTime;
 		drawBg();
 		draw();
 	}
+}
+
+function increaseDifficulty()
+{
+	difficulty = difficulty + 1;
+	
+	if(difficulty == 1) { minYaw = -60; maxYaw = 60; }
+	else if(difficulty == 2) { minYaw = -90; maxYaw = 90; }
+	else if(difficulty >= 3) { minYaw = -180; maxYaw = 180; }
+	
+	if(difficulty == 4) { minPitch = -20; maxPitch = 20; }
+	else if(difficulty == 5) { minPitch = -30; maxPitch = 30; }
+	else if(difficulty >= 6) { minPitch = -60; maxPitch = 60; }
+	
+	if(difficulty >= 4) numBallsPerWave = Math.floor(difficulty / 2);
+	if(difficulty >= 5) ballSpeedMultiplier = 1 + 0.25 * Math.floor((difficulty - 3) / 2);
 }
 
 function update()
 {
 	if(mode == GameModes.Playing)
 	{
-		totalElapsedTime = (new Date()) - startTime;
+		var currTime = new Date();
+		totalElapsedTime = currTime - startTime;
+		var elapsed = (currTime - lastTime) / 1000;
+		lastTime = currTime;
+		ouchOpacity -= 0.05;
 	
-		var angleX = yaw - targetYaw;
-		while(angleX < -180) angleX += 360;
-		while(angleX > 180) angleX -= 360;
-		var angleY = pitch - targetPitch;
-		if(Math.abs(angleX) < 5 && Math.abs(angleY) < 5)
-			centerPercent += 3; // use to control how long the target needs to be centered
-		else
-			centerPercent = 0;
-			
-		hintVisibility -= 0.02;
+		for(var i = 0; i < targets.length; i++)
+		{			
+			targets[i].distance -= elapsed * BALL_SPEED * ballSpeedMultiplier;
+			if(targets[i].distance <= 1)
+			{
+				// We're hit!
+				sounds.play(1);
+				ouchOpacity = 0.5;
+				clearTarget(i);
+				i--;
+				continue;
+			}
 		
-		if(centerPercent >= 100)
+			var angleX = yaw - targets[i].yaw;
+			while(angleX < -180) angleX += 360;
+			while(angleX > 180) angleX -= 360;
+			var angleY = pitch - targets[i].pitch;
+			var targetRadius = ballPic.width / targets[i].distance;
+			var targetRadiusDegrees = (2 * targetRadius) / canvas.width * widthDegrees;
+			if(Math.abs(angleX) < targetRadiusDegrees && Math.abs(angleY) < targetRadiusDegrees)
+				targets[i].hitPercent += elapsed * 200; // use to control how long the target needs to be centered
+			else
+				targets[i].hitPercent = 0;
+				
+			if(targets[i].hitPercent >= 100)
+			{
+				sounds.play(0);
+				clearTarget(i);
+				i--;
+			}
+		}
+		
+		if(targets.length == 0)
 		{
-			hintVisibility = 1;
-			prevYaw = targetYaw;
-			prevPitch = targetPitch;
-		
-			targetYaw = Math.random() * 360 - 180;
-			//targetYaw = Math.random() * 60 - 30;
-			targetPitch = Math.random() * (maxPitch - minPitch) + minPitch;
-			centerPercent = 0;
-			
-			// convert to latitude and longitude framework
-			var lon1 = prevYaw;
-			var lon2 = targetYaw;
-			var lat1 = -prevPitch;
-			var lat2 = -targetPitch;
-			
-			// find the difference in longitude for the great circle equations
-			var dLon = lon2 - lon1;
-			while(dLon < -180) dLon += 360;
-			while(dLon > 180) dLon -= 360;
-			
-			// convert to degrees
-			lon1 = lon1 * Math.PI / 180;
-			lon2 = lon2 * Math.PI / 180;
-			lat1 = lat1 * Math.PI / 180;
-			lat2 = lat2 * Math.PI / 180;
-			dLon = dLon * Math.PI / 180;
-			
-			// find the great circle bearing between targets
-			// great circle equation adapted from http://www.movable-type.co.uk/scripts/latlong.html
-			var bearing = Math.atan2(Math.sin(dLon) * Math.cos(lat2), 
-									 Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon));
-			
-			// use the calculated bearing to create a hint arrow for the direction the user should turn
-			hintDirection = bearing * 180 / Math.PI;
-			hintDirection = hintDirection + 90;
-			if(hintDirection > 180) hintDirection -= 360;
+			wave++;
+			if(wave >= NUM_WAVES_PER_DIFFICULTY_LEVEL) { wave = 0; increaseDifficulty(); }
+			for(var i = 0; i < numBallsPerWave; i++) addTarget();
 		}
 	
 		draw();
