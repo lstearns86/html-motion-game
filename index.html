@@ -369,6 +369,8 @@ function draw()
 		cxt.fillRect(0, 0, canvas.width, canvas.height);
 		cxt.globalAlpha = 1;
 		
+		cxt.drawImage(logoImg, canvas.width / 2 - logoImg.width / 2, canvas.height / 2 - logoImg.height);
+		
 		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#ffffff";
 		var minutes = Math.floor(finishTime / (60 * 1000) % 60);
@@ -542,7 +544,7 @@ function click(p)
 {
 	if((mode == GameModes.NewGame || mode == GameModes.GameOver) && 
 	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
-	   p.y >= canvas.height / 2 - 50 && p.y < canvas.height / 2 + 50)
+	   p.y >= canvas.height / 2 + 150 && p.y < canvas.height / 2 + 250)
 	{
 		sounds.audio.play();
 	
