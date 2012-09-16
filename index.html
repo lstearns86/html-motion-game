@@ -148,7 +148,8 @@ function initialize()
 	logoImg.onload = function() { numResourcesLoaded++; if(numResourcesLoaded >= numResources) resourcesLoaded(); }
 	logoImg.src = "images/logo.png";
 	
-	sounds = new Track("sounds/sounds.mp3", 1, 0.25);
+	// first two sound effects downloaded from freesound.org. Others recorded manually
+	sounds = new Track("sounds/sounds.mp3", 4, 0.10);
 	
 	resize();
 	update();
@@ -546,7 +547,7 @@ function click(p)
 	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
 	   p.y >= canvas.height / 2 + 150 && p.y < canvas.height / 2 + 250)
 	{
-		sounds.audio.play();
+		if(mode == GameModes.NewGame) sounds.audio.play();
 	
 		newGame();
 	}
@@ -588,7 +589,7 @@ function update()
 			//trajectory test
 		    var pitchAngularSpeed = DIS_PAD * (targets[i].pitchSpd + targets[i].pitchAcc * totalElapsedTime) / Math.pow((targets[i].distance - BALL_SPEED * totalElapsedTime), 1);
 		    var yawAngularSpeed = DIS_PAD * (targets[i].yawSpd + targets[i].yawAcc * totalElapsedTime) / Math.pow((targets[i].distance - BALL_SPEED * totalElapsedTime), 1);
-		    console.log([targets[i].distance, targets[i].pitchSpd, targets[i].pitchAcc]);
+		    //console.log([targets[i].distance, targets[i].pitchSpd, targets[i].pitchAcc]);
 
 		    targets[i].pitch += pitchAngularSpeed * elapsed;
 		    targets[i].yaw += yawAngularSpeed * elapsed;
@@ -606,7 +607,12 @@ function update()
 			if(targets[i].distance <= 1)
 			{
 				// We're hit!
-				sounds.play(1);
+				var soundIndex = 1;
+				if(health >= 5 || health == 3) soundIndex = 1 + Math.floor(Math.random() * 13); // random grunt out of 13 possibilities
+				else if(health == 4 || health == 2) soundIndex = 14 + Math.floor(Math.random() * 8) // random announcer comment out of 8 possibilities
+				else if(health == 1) soundIndex = 22 + Math.floor(Math.random() * 19) // random taunt out of 19 possibilities
+				
+				sounds.play(soundIndex);
 				ouchOpacity = 0.5;
 				health -= 1;
 				clearTarget(i);
@@ -671,6 +677,11 @@ function update()
 			wave++;
 			if(wave >= NUM_WAVES_PER_DIFFICULTY_LEVEL) { wave = 0; increaseDifficulty(); }
 			for(var i = 0; i < numBallsPerWave; i++) addTarget();
+			
+			// can't play pitching machine sound due to overlapping sound issue (with hit or ouch sound nearly simultaneous)
+			//var pitchSoundIndex = 2 + numBallsPerWave - 1;
+			//if(pitchSoundIndex > 7) pitchSoundIndex = 7;
+			//sounds.play(pitchSoundIndex);
 		}
 	
 		draw();
