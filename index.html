@@ -217,9 +217,10 @@ function draw()
 		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
 		cxt.stroke();
 		
-		cxt.font = "24pt Arial";
 		cxt.fillStyle = "#ffffff";
 		
+		if(window.orientation == 0 || canvas.height > canvas.width) cxt.font = "18pt Arial";
+		else cxt.font = "24pt Arial";
 		var tutorialText = ["Baseballs are coming at you from all sides!",
 							"Keep them in your sights so that you can hit them over the horizon.",
 							"Watch out, it gets harder the longer you survive."];
@@ -228,7 +229,12 @@ function draw()
 		cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
 		cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
 		
+		cxt.font = "24pt Arial";
 		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 212);
+		
+		cxt.fillStyle = "#000000";
+		cxt.fillText('Yaw: ' + Math.round(yaw), 10, 30);
+		cxt.fillText('Pitch: ' + Math.round(pitch), 10, 60);
 	}
 	else if(mode == GameModes.Playing)
 	{
@@ -407,6 +413,8 @@ function draw()
 		cxt.stroke();
 		
 		cxt.fillStyle = "#ffffff";
+		if(window.orientation == 0 || canvas.height > canvas.width) cxt.font = "18pt Arial";
+		else cxt.font = "24pt Arial";
 		var tutorialText = ["Baseballs are coming at you from all sides!",
 							"Keep them in your sights so that you can hit them over the horizon.",
 							"Watch out, it gets harder the longer you survive."];
@@ -415,6 +423,7 @@ function draw()
 		cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
 		cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
 		
+		cxt.font = "24pt Arial";
 		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 212);
 	}
 }
@@ -514,6 +523,12 @@ function orientationChanged(e)
 			
 			yaw = -yaw * 180 / Math.PI;
 			pitch = pitch * 180 / Math.PI - 90;
+			
+			/*if(Math.abs(pitch > 90))
+			{
+				yaw = -yaw;
+				pitch = -pitch - 90;
+			}*/
 		}
 		
 		if(yaw > 180) yaw -= 360;
@@ -683,12 +698,13 @@ function update()
 			//if(pitchSoundIndex > 7) pitchSoundIndex = 7;
 			//sounds.play(pitchSoundIndex);
 		}
-	
-		draw();
 	}
 	
 	if(mode != GameModes.Loading)
+	{
 		drawBg();
+		draw();
+	}
 	
 	requestAnimFrame(update);
 }
