@@ -197,6 +197,9 @@ function draw()
 	
 	canvas.width = canvas.width; // may be faster for some browsers
 	
+	var iphone = canvas.width < 500 || canvas.height < 500;
+	var landscape = window.orientation == 90 || window.orientation == -90 || canvas.width > canvas.height;
+	
 	if(mode == GameModes.Loading)
 	{
 		cxt.font = "24pt Arial";
@@ -205,32 +208,64 @@ function draw()
 	}
 	else if(mode == GameModes.NewGame)
 	{
-		cxt.drawImage(logoImg, canvas.width / 2 - logoImg.width / 2, canvas.height / 2 - logoImg.height);
+		var scale = iphone ? 1/2 : 1;
+		var verticalShift = iphone ? (landscape ? 20 : 50) : 0;
+		cxt.drawImage(logoImg, canvas.width / 2 - logoImg.width / 2 * scale, canvas.height / 2 - logoImg.height * scale - verticalShift, logoImg.width * scale, logoImg.height * scale);
 	
 		cxt.fillStyle = "#4455cc";
 		cxt.globalAlpha = 0.3;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
+		verticalShift = iphone ? (landscape ? 30 : 80) : 150;
+		cxt.roundRect(canvas.width / 2 - (iphone ? 100 : 150), canvas.height / 2 + verticalShift, (iphone ? 200 : 300), (iphone ? 75 : 100), 15);
 		cxt.fill();
 		cxt.globalAlpha = 1;
 		cxt.strokeStyle = "#ffffff";
 		cxt.lineWidth = 2;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
+		cxt.roundRect(canvas.width / 2 - (iphone ? 100 : 150), canvas.height / 2 + verticalShift, (iphone ? 200 : 300), (iphone ? 75 : 100), 15);
 		cxt.stroke();
 		
 		cxt.fillStyle = "#ffffff";
 		
-		if(window.orientation == 0 || canvas.height > canvas.width) cxt.font = "18pt Arial";
-		else cxt.font = "24pt Arial";
-		var tutorialText = ["Baseballs are coming at you from all sides!",
-							"Keep them in your sights so that you can hit them over the horizon.",
-							"Watch out, it gets harder the longer you survive."];
+		if(iphone && !landscape)
+		{
+			cxt.font = "14pt Arial";
+			var tutorialText = ["Baseballs are coming at you from",
+								"all sides! Keep them in your sights",
+								"so that you can hit them over the",
+								"horizon. Watch out, it gets harder",
+								"the longer you survive."];
+			
+			cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 - 32);
+			cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 - 12);
+			cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 8);
+			cxt.fillText(tutorialText[3], canvas.width / 2 - cxt.measureText(tutorialText[3]).width / 2, canvas.height / 2 + 28);
+			cxt.fillText(tutorialText[4], canvas.width / 2 - cxt.measureText(tutorialText[4]).width / 2, canvas.height / 2 + 48);
+		}
+		else if (iphone && landscape)
+		{
+			cxt.font = "14pt Arial";
+			var tutorialText = ["Baseballs are coming at you from all sides! Keep them",
+								"in your sights so that you can hit them over the horizon.",
+								"Watch out, it gets harder the longer you survive."];
+			
+			cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 - 20);
+			cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2);
+			cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 20);
+		}
+		else
+		{
+			if(landscape) cxt.font = "24pt Arial";
+			else cxt.font = "18pt Arial";
+			var tutorialText = ["Baseballs are coming at you from all sides!",
+								"Keep them in your sights so that you can hit them over the horizon.",
+								"Watch out, it gets harder the longer you survive."];
+			
+			cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 + 22);
+			cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
+			cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
+		}
 		
-		cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 + 22);
-		cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
-		cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
-		
-		cxt.font = "24pt Arial";
-		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 212);
+		cxt.font = iphone ? "16pt Arial" : "24pt Arial";
+		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + verticalShift + (iphone ? 45 : 62));
 		
 		/*cxt.fillStyle = "#000000";
 		cxt.fillText('Yaw: ' + Math.round(yaw), 10, 30);
@@ -346,7 +381,7 @@ function draw()
 		cxt.stroke();
 		
 		// draw the score/time display
-		cxt.font = "24pt Arial";
+		cxt.font = iphone ? "18pt Arial" : "24pt Arial";
 		cxt.fillStyle = "#ffffff";
 		var minutes = Math.floor(totalElapsedTime / (60 * 1000) % 60);
 		var seconds = Math.floor(totalElapsedTime / 1000 % 60);
@@ -356,10 +391,11 @@ function draw()
 										 (hundredths < 10 ? "0" : "") + hundredths, 10, 30);
 
 		// draw the health
+		var scale = iphone ? 1/2 : 1;
 		for(var i = 0; i < MAX_HEALTH; i++)
 		{
-			if(i + 1 <= health) cxt.drawImage(heartImg, canvas.width - (i + 1) * (heartImg.width + 10), 10, heartImg.width, heartImg.height);
-			else cxt.drawImage(heartOutlineImg, canvas.width - (i + 1) * (heartOutlineImg.width + 10), 10, heartOutlineImg.width, heartOutlineImg.height);
+			if(i + 1 <= health) cxt.drawImage(heartImg, canvas.width - (i + 1) * (heartImg.width * scale + 10), (iphone ? canvas.height - heartImg.height * scale - 10 : 10), heartImg.width * scale, heartImg.height * scale);
+			else cxt.drawImage(heartOutlineImg, canvas.width - (i + 1) * (heartOutlineImg.width * scale + 10), (iphone ? canvas.height - heartImg.height * scale - 10 : 10), heartOutlineImg.width * scale, heartOutlineImg.height * scale);
 		}
 										 
 		if(ouchOpacity > 0)
@@ -376,55 +412,59 @@ function draw()
 		cxt.fillRect(0, 0, canvas.width, canvas.height);
 		cxt.globalAlpha = 1;
 		
-		cxt.drawImage(logoImg, canvas.width / 2 - logoImg.width / 2, canvas.height / 2 - logoImg.height);
+		if(!iphone) cxt.drawImage(logoImg, canvas.width / 2 - logoImg.width / 2, canvas.height / 2 - logoImg.height);
 		
-		cxt.font = "24pt Arial";
+		cxt.font = iphone ? "14pt Arial" : "24pt Arial";
 		cxt.fillStyle = "#ffffff";
 		var minutes = Math.floor(finishTime / (60 * 1000) % 60);
 		var seconds = Math.floor(finishTime / 1000 % 60);
 		var hundredths = Math.floor(finishTime / 10 % 100);
 		cxt.fillText('Survival Time: ' + (minutes < 10 ? "0" : "") + minutes + ":" + 
 										 (seconds < 10 ? "0" : "") + seconds + ":" + 
-										 (hundredths < 10 ? "0" : "") + hundredths, 10, 30);
-		cxt.fillText('Difficulty Level: ' + difficulty, 10, 60);
-		cxt.fillText('Number of Balls Hit: ' + ballsHit, 10, 90);
-		cxt.fillText('Final Score: ' + finishScore, 10, 120);
+										 (hundredths < 10 ? "0" : "") + hundredths, 10, (iphone ? 20 : 30));
+		cxt.fillText('Difficulty Level: ' + difficulty, 10, (iphone ? 40 : 60));
+		cxt.fillText('Number of Balls Hit: ' + ballsHit, 10, (iphone ? 60 : 90));
+		cxt.fillText('Final Score: ' + finishScore, 10, (iphone ? 80 : 120));
 		
-		cxt.fillText('High Scores:', canvas.width - 200, 30);
+		cxt.fillText('High Scores:', canvas.width - (iphone ? 100 : 200), (iphone ? 20 : 30));
 		for(var i = 0; i < highScores.length; i++)
 		{
 			cxt.fillStyle = newHighScore == i ? "#ffff00" : "#ffffff";
-			cxt.fillText((i + 1) + ': ' + highScores[i], canvas.width - 200, 60 + i * 30);
+			cxt.fillText((i + 1) + ': ' + highScores[i], canvas.width - (iphone ? 100 : 200), (iphone ? (40 + i * 20) : (60 + i * 30)));
 		}
-		if(newHighScore >= 0)
+		if(!iphone && newHighScore >= 0)
 		{
 			cxt.fillStyle = "#ffff00";
-			cxt.fillText("New High Score!", canvas.width - 200 - cxt.measureText("New High Score!").width - 10, 60 + newHighScore * 30);
+			cxt.fillText("New High Score!", canvas.width - (iphone ? 100 : 200) - cxt.measureText("New High Score!").width - 10, 60 + newHighScore * 30);
 		}
 		
 		cxt.fillStyle = "#4455cc";
 		cxt.globalAlpha = 0.3;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
+		var verticalShift = iphone ? (landscape ? 30 : 80) : 150;
+		cxt.roundRect(canvas.width / 2 - (iphone ? 100 : 150), canvas.height / 2 + verticalShift, (iphone ? 200 : 300), (iphone ? 75 : 100), 15);
 		cxt.fill();
 		cxt.globalAlpha = 1;
 		cxt.strokeStyle = "#ffffff";
 		cxt.lineWidth = 2;
-		cxt.roundRect(canvas.width / 2 - 150, canvas.height / 2 + 150, 300, 100, 15);
+		cxt.roundRect(canvas.width / 2 - (iphone ? 100 : 150), canvas.height / 2 + verticalShift, (iphone ? 200 : 300), (iphone ? 75 : 100), 15);
 		cxt.stroke();
 		
 		cxt.fillStyle = "#ffffff";
-		if(window.orientation == 0 || canvas.height > canvas.width) cxt.font = "18pt Arial";
-		else cxt.font = "24pt Arial";
-		var tutorialText = ["Baseballs are coming at you from all sides!",
-							"Keep them in your sights so that you can hit them over the horizon.",
-							"Watch out, it gets harder the longer you survive."];
+		if(!iphone)
+		{
+			if(window.orientation == 0 || canvas.height > canvas.width) cxt.font = "18pt Arial";
+			else cxt.font = "24pt Arial";
+			var tutorialText = ["Baseballs are coming at you from all sides!",
+								"Keep them in your sights so that you can hit them over the horizon.",
+								"Watch out, it gets harder the longer you survive."];
+			
+			cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 + 22);
+			cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
+			cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
+		}
 		
-		cxt.fillText(tutorialText[0], canvas.width / 2 - cxt.measureText(tutorialText[0]).width / 2, canvas.height / 2 + 22);
-		cxt.fillText(tutorialText[1], canvas.width / 2 - cxt.measureText(tutorialText[1]).width / 2, canvas.height / 2 + 62);
-		cxt.fillText(tutorialText[2], canvas.width / 2 - cxt.measureText(tutorialText[2]).width / 2, canvas.height / 2 + 102);
-		
-		cxt.font = "24pt Arial";
-		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + 212);
+		cxt.font = iphone ? "16pt Arial" : "24pt Arial";
+		cxt.fillText('Start New Game', canvas.width / 2 - cxt.measureText("Start New Game").width / 2, canvas.height / 2 + verticalShift + (iphone ? 45 : 62));
 	}
 }
 
@@ -446,13 +486,13 @@ function drawBg()
 	
 	// scale background image for better augmented reality experience
 	var scaleFactor = 1;
-	switch(window.orientation)
+	/*switch(window.orientation)
 	{
 		case 0: scaleFactor = 3; break;
 		case 90:
 		case -90: scaleFactor = 2; break;
 	}
-	if(canvas.width > canvas.height) scaleFactor = 2;
+	if(canvas.width > canvas.height) scaleFactor = 2;*/
 	var bgWidth = scaleFactor * bgImg.width;
 	var bgHeight = scaleFactor * bgImg.height;
 	
@@ -558,9 +598,15 @@ function newGame()
 
 function click(p)
 {
+	var iphone = canvas.width < 500 || canvas.height < 500;
+	var landscape = window.orientation == 90 || window.orientation == -90 || canvas.width > canvas.height;
+	var x1 = canvas.width / 2 - (iphone ? 100 : 150);
+	var x2 = canvas.width / 2 + (iphone ? 100 : 150);
+	var y1 = canvas.height / 2 + (iphone ? (landscape ? 30 : 80) : 150);
+	var y2 = canvas.height / 2 + (iphone ? (landscape ? 105 : 155) : 250);
+	
 	if((mode == GameModes.NewGame || mode == GameModes.GameOver) && 
-	   p.x >= canvas.width / 2 - 150 && p.x < canvas.width / 2 + 150 &&
-	   p.y >= canvas.height / 2 + 150 && p.y < canvas.height / 2 + 250)
+	   p.x >= x1 && p.x < x2 && p.y >= y1 && y2)
 	{
 		if(mode == GameModes.NewGame) sounds.audio.play();
 	
